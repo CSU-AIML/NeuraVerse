@@ -20,7 +20,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     storageKey: 'supabase-auth',
     detectSessionInUrl: true,
-    flowType: 'implicit'
+    flowType: 'pkce' // Changed from 'implicit' to 'pkce' for better security
   },
   global: {
     headers: {
@@ -61,7 +61,7 @@ export const getCurrentUser = async () => {
   }
 };
 
-// Login helper with IP and device tracking
+// Login helper with device tracking
 export const secureLogin = async (email: string, password: string) => {
   try {
     // Get browser fingerprint
@@ -85,6 +85,10 @@ export const secureLogin = async (email: string, password: string) => {
 
     if (error) return { error };
 
+    // Check if MFA is required - use a different approach since factor_id isn't available
+    // For MFA check, typically you'd look for metadata or signals in the user or session object
+    const mfaRequired = data.user?.factors && data.user.factors.length > 0;
+
     if (data.user) {
       // Log login for security monitoring
       await supabase
@@ -102,9 +106,59 @@ export const secureLogin = async (email: string, password: string) => {
         });
     }
     
-    return { data, error: null };
+    return { data, error: null, mfaRequired };
   } catch (error) {
     console.error('Secure login error:', error);
+    return { data: null, error };
+  }
+};
+
+// Function to handle MFA verification
+export const verifyMFA = async (factorId: string, code: string) => {
+  try {
+    // Use the correct Supabase MFA API
+    const { data, error } = await supabase.auth.mfa.challengeAndVerify({
+      factorId,
+      code
+    });
+
+    if (error) return { error };
+    
+    // Log successful MFA verification
+    const user = await supabase.auth.getUser();
+    if (user.data.user) {
+      await supabase
+        .from('security_events')
+        .insert({
+          event_type: 'mfa_verification',
+          user_id: user.data.user.id,
+          details: {
+            verified: true,
+            method: 'totp'
+          }
+        });
+    }
+    
+    return { data, error: null };
+  } catch (error) {
+    console.error('MFA verification error:', error);
+    return { data: null, error };
+  }
+};
+
+// Function to enroll a new MFA factor for a user
+export const enrollMFA = async () => {
+  try {
+    // Start the MFA enrollment process
+    const { data, error } = await supabase.auth.mfa.enroll({
+      factorType: 'totp'
+    });
+    
+    if (error) return { error };
+    
+    return { data, error: null };
+  } catch (error) {
+    console.error('MFA enrollment error:', error);
     return { data: null, error };
   }
 };

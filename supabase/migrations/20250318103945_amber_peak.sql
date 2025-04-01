@@ -942,3 +942,22 @@ BEGIN
   RETURN reset_count > 5;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- First, find the user ID for dhruvil7694@gmail.com
+SELECT id FROM auth.users WHERE email = 'dhruvil7694@gmail.com';
+
+-- Then, using that ID, ensure the user_profiles entry exists with admin role
+INSERT INTO public.user_profiles (id, role, display_name, created_at, updated_at)
+VALUES 
+  ('USER_ID_FROM_ABOVE', 'admin', 'Dhruvil', current_timestamp, current_timestamp)
+ON CONFLICT (id) 
+DO UPDATE SET role = 'admin', updated_at = current_timestamp;
+
+-- Also update the user's metadata in auth.users table
+UPDATE auth.users
+SET raw_user_meta_data = jsonb_set(
+  COALESCE(raw_user_meta_data, '{}'::jsonb),
+  '{role}',
+  '"admin"'
+)
+WHERE email = 'dhruvil7694@gmail.com';

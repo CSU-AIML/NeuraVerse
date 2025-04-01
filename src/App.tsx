@@ -15,6 +15,7 @@ import { AlertProvider } from './components/AlertContext';
 import ApiReference from './components/ApiReference';
 import Templates from './components/Templates';
 import Tutorials from './components/Tutorials';
+import AuthCallback from './components/AuthCallback '; // Import the auth callback component
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
               <Routes>
                 {/* Authentication Routes */}
                 <Route path="/signin" element={<SignIn />} />
+                <Route path="/auth/callback" element={<AuthCallback />} /> {/* Universal auth callback handler */}
                 
                 {/* Root path shows Dashboard for logged in users, SignIn for others */}
                 <Route path="/" element={

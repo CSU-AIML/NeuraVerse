@@ -155,6 +155,10 @@ export function SignIn({ onSuccess }: SignInProps) {
         throw new Error('Password must be at least 8 characters long');
       }
 
+      // Set redirect URL for email verification
+      const redirectUrl = `${window.location.origin}/auth/callback`;
+      console.log("Setting redirect URL to:", redirectUrl);
+
       // Sign up user with regular user role only (no admin option)
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -162,7 +166,8 @@ export function SignIn({ onSuccess }: SignInProps) {
         options: {
           data: {
             role: 'user' // Always set to 'user'
-          }
+          },
+          emailRedirectTo: redirectUrl
         }
       });
 
@@ -212,9 +217,8 @@ export function SignIn({ onSuccess }: SignInProps) {
     setSuccessMessage(null);
 
     try {
-      // Explicitly set the redirect URL to the reset-password page
-      // This ensures the reset link goes to the correct page
-      const resetRedirectUrl = `${window.location.origin}/reset-password`;
+      // Set redirect URL for password reset
+      const resetRedirectUrl = `${window.location.origin}/auth/callback`;
       console.log("Setting reset redirect URL to:", resetRedirectUrl);
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
