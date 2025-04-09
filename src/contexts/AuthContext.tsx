@@ -81,6 +81,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               .insert({
                 display_name: email.split('@')[0],
                 firebase_uid: uid,
+                email: email,
                 role: 'admin',
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
@@ -102,7 +103,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                   role: 'admin',
                   updated_at: new Date().toISOString()
                 })
-                .eq('id', existingUser.id);  // Use the actual primary key
+                .eq('id', existingUser.id);
                 
               if (updateError) {
                 console.error('Error updating admin role:', updateError);
@@ -133,6 +134,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             .insert({
               display_name: email.split('@')[0],
               firebase_uid: uid,
+              email: email,
               role: 'user',
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
@@ -152,7 +154,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.error('Error fetching user profile:', err);
       }
       
-      // Default to user role
+      // Default return to ensure all code paths return a value
       return 'user';
     } catch (error) {
       console.error('Error determining user role:', error);

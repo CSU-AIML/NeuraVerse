@@ -701,107 +701,107 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                     </div>
                     
                     {/* Action Buttons with enhanced styling for desktop */}
-<div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-gray-700/30">
-  <motion.button
-    onClick={handleUseProject}
-    disabled={!project.app_url || isArchived}
-    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800 shadow-lg shadow-blue-500/20"
-    whileHover={{ scale: 1.02 }}
-    whileTap={{ scale: 0.98 }}
-    aria-label="Open project application"
-  >
-    <ExternalLink className="w-4 h-4" />
-    Open Project
-  </motion.button>
-  
-  {project.github_url && (
-    <motion.a
-      href={project.github_url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-gray-700/40 border border-gray-600/40 text-white hover:bg-gray-600/50 hover:border-gray-500/60 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 focus:ring-offset-gray-800"
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-      aria-label="View source code on GitHub"
-      tabIndex={isArchived ? -1 : 0}
-      style={isArchived ? { pointerEvents: 'none' } : {}}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <Github className="w-4 h-4" />
-      Source Code
-    </motion.a>
-  )}
-  
-  {project.readme_url && (
-    <motion.a
-      href={project.readme_url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-gray-700/40 border border-gray-600/40 text-white hover:bg-gray-600/50 hover:border-gray-500/60 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 focus:ring-offset-gray-800"
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-      aria-label="View project documentation"
-      tabIndex={isArchived ? -1 : 0}
-      style={isArchived ? { pointerEvents: 'none' } : {}}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <Info className="w-4 h-4" />
-      Documentation
-    </motion.a>
-  )}
-</div>
-</>
-)}
-</motion.div>
-)}
-</AnimatePresence>
+                    <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-gray-700/30">
+                      <motion.button
+                        onClick={handleUseProject}
+                        disabled={!project.app_url || isArchived}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800 shadow-lg shadow-blue-500/20"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        aria-label="Open project application"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Open Project
+                      </motion.button>
+                      
+                      {project.github_url && (
+                        <motion.a
+                          href={project.github_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-gray-700/40 border border-gray-600/40 text-white hover:bg-gray-600/50 hover:border-gray-500/60 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 focus:ring-offset-gray-800"
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          aria-label="View source code on GitHub"
+                          tabIndex={isArchived ? -1 : 0}
+                          style={isArchived ? { pointerEvents: 'none' } : {}}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Github className="w-4 h-4" />
+                          Source Code
+                        </motion.a>
+                      )}
+                      
+                      {project.readme_url && (
+                        <motion.a
+                          href={project.readme_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-gray-700/40 border border-gray-600/40 text-white hover:bg-gray-600/50 hover:border-gray-500/60 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 focus:ring-offset-gray-800"
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          aria-label="View project documentation"
+                          tabIndex={isArchived ? -1 : 0}
+                          style={isArchived ? { pointerEvents: 'none' } : {}}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Info className="w-4 h-4" />
+                          Documentation
+                        </motion.a>
+                      )}
+                    </div>
+                    </>
+                    )}
+                    </motion.div>
+                    )}
+                    </AnimatePresence>
 
-{/* Mobile admin action buttons at bottom */}
-{isAdmin && isMobile && (
-<div className="flex justify-end gap-2 mt-3 pt-3 border-t border-gray-700/30">
-  <button
-    onClick={handleArchiveToggle}
-    className={`p-2.5 rounded-full ${isArchived 
-      ? 'bg-blue-600/40 border-blue-500/50' 
-      : 'bg-gray-700/40 border-gray-600/30'} 
-      hover:bg-purple-600/40 hover:border-purple-500/50 transition-colors duration-300 border`}
-    title={isArchived ? "Restore project" : "Archive project"}
-    aria-label={isArchived ? "Restore project" : "Archive project"}
-  >
-    {isArchived ? (
-      <RefreshCw className="w-4 h-4 text-blue-300" />
-    ) : (
-      <Archive className="w-4 h-4 text-gray-300" />
-    )}
-  </button>
-  
-  <button
-    onClick={handleDeleteClick}
-    className="p-2.5 rounded-full bg-gray-700/40 border border-gray-600/30 hover:bg-red-600/40 hover:border-red-500/50 transition-colors duration-300"
-    title="Delete project"
-    aria-label="Delete project"
-  >
-    <Trash2 className="w-4 h-4 text-gray-300" />
-  </button>
-</div>
-)}
-</div>
-</div>
+                    {/* Mobile admin action buttons at bottom */}
+                    {isAdmin && isMobile && (
+                    <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-gray-700/30">
+                      <button
+                        onClick={handleArchiveToggle}
+                        className={`p-2.5 rounded-full ${isArchived 
+                          ? 'bg-blue-600/40 border-blue-500/50' 
+                          : 'bg-gray-700/40 border-gray-600/30'} 
+                          hover:bg-purple-600/40 hover:border-purple-500/50 transition-colors duration-300 border`}
+                        title={isArchived ? "Restore project" : "Archive project"}
+                        aria-label={isArchived ? "Restore project" : "Archive project"}
+                      >
+                        {isArchived ? (
+                          <RefreshCw className="w-4 h-4 text-blue-300" />
+                        ) : (
+                          <Archive className="w-4 h-4 text-gray-300" />
+                        )}
+                      </button>
+                      
+                      <button
+                        onClick={handleDeleteClick}
+                        className="p-2.5 rounded-full bg-gray-700/40 border border-gray-600/30 hover:bg-red-600/40 hover:border-red-500/50 transition-colors duration-300"
+                        title="Delete project"
+                        aria-label="Delete project"
+                      >
+                        <Trash2 className="w-4 h-4 text-gray-300" />
+                      </button>
+                    </div>
+                    )}
+                    </div>
+                    </div>
 
-{/* Floating button on non-mobile to expand project details in modal/drawer */}
-{!isMobile && !isArchived && (
-<button
-  onClick={(e) => {
-    e.stopPropagation();
-    navigate(`/projects/${project.id}`);
-  }}
-  className="absolute bottom-3 right-3 p-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-white hover:bg-white/20 z-20"
-  title="View full details"
-  aria-label="View full project details"
->
-  <ArrowRight className="w-4 h-4" />
-</button>
-)}
-</motion.div>
+                    {/* Floating button on non-mobile to expand project details in modal/drawer */}
+                    {!isMobile && !isArchived && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/projects/${project.id}`);
+                      }}
+                      className="absolute bottom-3 right-3 p-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-white hover:bg-white/20 z-20"
+                      title="View full details"
+                      aria-label="View full project details"
+                    >
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                    )}
+                    </motion.div>
 );
 };

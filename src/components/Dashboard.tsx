@@ -11,7 +11,7 @@ import ProjectFilters from './ProjectFilters';
 import NavButtons from './NavButtons';
 import ProjectsList from './ProjectList';
 import { useAlert } from '../components/AlertContext';
-import whiteLogo from '../components/assets/white_logo.png'; // Adjust path as needed
+import logo from "../components/assets/white_logo.png";
 
 // Import CSS for animations
 import '../alert-animations.css';
@@ -370,7 +370,7 @@ function Dashboard() {
                 transition={{ type: "spring", stiffness: 300 }}
               >
                 <img 
-                  src={whiteLogo} 
+                  src= {logo} 
                   alt="AI/ML Projects Dashboard" 
                   className="h-8 w-auto"
                 />

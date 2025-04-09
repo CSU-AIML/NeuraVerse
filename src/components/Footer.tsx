@@ -1,5 +1,6 @@
 import React from 'react';
 import { Github, Twitter, Linkedin, Mail, ExternalLink, ChevronUp, Heart } from 'lucide-react';
+import logo from "../components/assets/white_logo.png";
 
 const Footer: React.FC = () => {
   const scrollToTop = () => {
@@ -80,7 +81,7 @@ const Footer: React.FC = () => {
             <div className="flex items-center space-x-3 mb-4 group">
               <div className="relative h-10 w-10 overflow-hidden rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 p-1 shadow-inner shadow-white/10">
                 <img 
-                  src="/white_logo.png" 
+                  src= {logo} 
                   alt="NeuraVerse Logo" 
                   className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-110"
                 />

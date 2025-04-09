@@ -19,6 +19,12 @@ interface AlertContextType {
   clearAlerts: () => void;
 }
 
+interface AlertOptions {
+  autoClose?: boolean;
+  duration?: number;
+  animation?: string; // Add this property
+}
+
 const AlertContext = createContext<AlertContextType | undefined>(undefined);
 
 interface AlertProviderProps {
