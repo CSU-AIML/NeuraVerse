@@ -1,5 +1,11 @@
-// src/contexts/AuthContext.tsx
+// contexts/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { 
+  auth, 
+  getCurrentUser, 
+  onAuthStateChanged, 
+  signOut as firebaseSignOut 
+} from '../lib/firebase';
 import { supabase } from '../lib/supabase';
 
 // Define user role types
@@ -21,10 +27,9 @@ interface AuthContextType {
   isAdmin: boolean;
   isLoading: boolean;
   authenticated: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any, mfaRequired?: boolean }>;
-  signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
   checkAuthStatus: () => Promise<boolean>;
+  signOut: () => Promise<void>;
 }
 
 // Create context with default values
@@ -34,10 +39,9 @@ const AuthContext = createContext<AuthContextType>({
   isAdmin: false,
   isLoading: true,
   authenticated: false,
-  signIn: async () => ({ error: null }),
-  signOut: async () => {},
   refreshUser: async () => {},
   checkAuthStatus: async () => false,
+  signOut: async () => {},
 });
 
 // Hook for easy context usage
@@ -53,23 +57,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [authenticated, setAuthenticated] = useState<boolean>(false);
 
-  // Check for the role in both metadata and profile to handle all cases
-  const determineUserRole = async (authUser: any): Promise<UserRole> => {
+  // Determine user role from Supabase database
+  const determineUserRole = async (email: string, uid: string): Promise<UserRole> => {
     try {
-      // Special case: make specific email always an admin
-      if (authUser.email === 'dhruvil7694@gmail.com') {
+      // Special case: Make specific emails always admin
+      // You can replace this with your admin emails
+      const adminEmails = ['admin@example.com', 'dhruvil7694@gmail.com']; 
+      if (adminEmails.includes(email.toLowerCase())) {
         console.log('Default admin user detected');
         
         // Also update profile to ensure persistence
         try {
-          await supabase
-            .from('user_profiles')
+          const { error } = await supabase
+            .from('app.user_profiles')
             .upsert({
-              id: authUser.id,
+              id: uid,
               role: 'admin',
-              display_name: 'Dhruvil',
+              display_name: email.split('@')[0],
               updated_at: new Date().toISOString()
             });
+            
+          if (error) {
+            console.error('Error updating admin profile:', error);
+          }
         } catch (err) {
           console.error('Error updating admin profile:', err);
         }
@@ -77,23 +87,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return 'admin';
       }
       
-      // First try to get role from user metadata (for newly signed up users)
-      const metadataRole = authUser.user_metadata?.role;
-      if (metadataRole === 'admin' || metadataRole === 'user') {
-        return metadataRole;
-      }
-      
-      // If no role in metadata, try to fetch from profile
+      // Try to fetch from profile
       try {
         const { data, error } = await supabase
-          .from('user_profiles')
+          .from('app.user_profiles')
           .select('role')
-          .eq('id', authUser.id)
+          .eq('id', uid)
           .single();
         
         if (error) {
-          console.log('No profile found, falling back to default role');
-          return 'user'; // Fallback to user if no profile found
+          console.log('No profile found, creating new user profile');
+          
+          // Create new user profile
+          await supabase
+            .from('app.user_profiles')
+            .upsert({
+              id: uid,
+              role: 'user',
+              display_name: email.split('@')[0],
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+            
+          return 'user';
         }
         
         if (data && (data.role === 'admin' || data.role === 'user')) {
@@ -111,11 +127,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Check if user is authenticated (useful for protected routes)
+  // Check if user is authenticated
   const checkAuthStatus = async (): Promise<boolean> => {
     try {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      const isAuthenticated = !!authUser;
+      const firebaseUser = getCurrentUser();
+      const isAuthenticated = !!firebaseUser;
       setAuthenticated(isAuthenticated);
       return isAuthenticated;
     } catch (error) {
@@ -129,43 +145,48 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const refreshUser = async () => {
     setIsLoading(true);
     try {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const firebaseUser = getCurrentUser();
       
-      if (!authUser) {
+      if (!firebaseUser) {
         setUser(null);
         setRole(null);
         setAuthenticated(false);
+        setIsLoading(false);
         return;
       }
 
       setAuthenticated(true);
       
+      // Get email from Firebase user
+      const email = firebaseUser.email || '';
+      
       // Determine role using our helper function
-      const userRole = await determineUserRole(authUser);
+      const userRole = await determineUserRole(email, firebaseUser.uid);
       setRole(userRole);
       
       // Set user data
       setUser({
-        id: authUser.id,
-        email: authUser.email || '',
+        id: firebaseUser.uid,
+        email: email,
         role: userRole,
-        display_name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
-        avatar_url: authUser.user_metadata?.avatar_url || null,
+        display_name: firebaseUser.displayName || email.split('@')[0],
       });
       
-      // Ensure user profile exists by using upsert 
-      // This helps fix cases where profile might be missing
-      const { error } = await supabase
-        .from('user_profiles')
-        .upsert({
-          id: authUser.id,
-          role: userRole,
-          display_name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
-          updated_at: new Date().toISOString()
-        });
-        
-      if (error && error.code !== '23505') {  // Ignore duplicate key violations
-        console.warn('Could not update user profile:', error);
+      // Log the authentication event
+      try {
+        await supabase
+          .from('app.security_events')
+          .insert({
+            event_type: 'login',
+            user_id: firebaseUser.uid,
+            details: {
+              method: 'google',
+              email: email,
+              user_agent: navigator.userAgent
+            }
+          });
+      } catch (error) {
+        console.error('Error logging authentication event:', error);
       }
       
     } catch (error) {
@@ -178,147 +199,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Initial authentication check
-  useEffect(() => {
-    const checkUser = async () => {
-      setIsLoading(true);
-      
-      try {
-        // Check if user is already authenticated
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        
-        if (!authUser) {
-          setUser(null);
-          setRole(null);
-          setAuthenticated(false);
-          setIsLoading(false);
-          return;
-        }
-        
-        setAuthenticated(true);
-        
-        // Use the same role determination logic
-        const userRole = await determineUserRole(authUser);
-        
-        setUser({
-          id: authUser.id,
-          email: authUser.email || '',
-          role: userRole,
-          display_name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
-          avatar_url: authUser.user_metadata?.avatar_url || null,
-        });
-        
-        setRole(userRole);
-        
-      } catch (error) {
-        console.error('Auth check error:', error);
-        setUser(null);
-        setRole(null);
-        setAuthenticated(false);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    // Initial check
-    checkUser();
-
-    // Subscribe to auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event);
-      
-      if (event === 'SIGNED_IN' && session?.user) {
-        setAuthenticated(true);
-        refreshUser();
-        
-        // Log auth events
-        try {
-          await supabase
-            .from('security_events')
-            .insert({
-              event_type: 'signin',
-              user_id: session.user.id,
-              details: {
-                method: 'email',
-                user_agent: navigator.userAgent
-              }
-            });
-        } catch (error) {
-          console.error('Error logging signin event:', error);
-        }
-        
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setRole(null);
-        setAuthenticated(false);
-        
-      } else if (event === 'USER_UPDATED') {
-        refreshUser();
-        
-      } else if (event === 'PASSWORD_RECOVERY') {
-        console.log('Password recovery event detected');
-        
-      } else if (event === 'TOKEN_REFRESHED') {
-        // Refresh the user data when token is refreshed
-        refreshUser();
-      }
-    });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
-
-  // Enhanced sign in function with MFA support
-  const signIn = async (email: string, password: string) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) return { error };
-
-      if (data.user) {
-        // For MFA check, typically you'd look for metadata or signals in the user or session object
-        const mfaRequired = data.user?.factors && data.user.factors.length > 0;
-        
-        await refreshUser();
-        
-        // Log success (if no MFA is required)
-        if (!mfaRequired) {
-          try {
-            // Get browser fingerprint
-            const fingerprint = navigator.userAgent + navigator.language + screen.width + 'x' + screen.height;
-            
-            // Log login for security monitoring
-            await supabase
-              .from('security_events')
-              .insert({
-                event_type: 'login',
-                user_id: data.user.id,
-                details: {
-                  fingerprint,
-                  user_agent: navigator.userAgent,
-                  platform: navigator.platform,
-                  screen_size: `${screen.width}x${screen.height}`
-                }
-              });
-          } catch (logError) {
-            console.error('Error logging login event:', logError);
-          }
-        }
-        
-        return { error: null, mfaRequired };
-      }
-      
-      return { error: null };
-    } catch (error) {
-      console.error('Sign in error:', error);
-      return { error };
-    }
-  };
-
   // Sign out function
   const signOut = async () => {
     try {
@@ -326,7 +206,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (user) {
         try {
           await supabase
-            .from('security_events')
+            .from('app.security_events')
             .insert({
               event_type: 'signout',
               user_id: user.id,
@@ -339,14 +219,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
       
-      await supabase.auth.signOut();
+      // Sign out from Firebase
+      await firebaseSignOut();
+      
+      // Clear user state
       setUser(null);
       setRole(null);
       setAuthenticated(false);
+      
     } catch (error) {
       console.error('Sign out error:', error);
     }
   };
+
+  // Initialize auth state listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(async (firebaseUser) => {
+      if (firebaseUser) {
+        // User is signed in
+        setAuthenticated(true);
+        await refreshUser();
+      } else {
+        // User is signed out
+        setUser(null);
+        setRole(null);
+        setAuthenticated(false);
+        setIsLoading(false);
+      }
+    });
+
+    // Cleanup subscription
+    return () => unsubscribe();
+  }, []);
 
   // Provide auth context
   const value = {
@@ -355,10 +259,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAdmin: role === 'admin',
     isLoading,
     authenticated,
-    signIn,
-    signOut,
     refreshUser,
-    checkAuthStatus
+    checkAuthStatus,
+    signOut
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

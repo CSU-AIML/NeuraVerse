@@ -5,7 +5,6 @@ import { TypingAnimation } from './magicui/typing-animation';
 import { supabase } from '../lib/supabase';
 import type { Project } from '../types/project';
 import { useAuth } from '../contexts/AuthContext';
-import { SignIn } from '../SignIn';
 import Footer from './Footer';
 import Loader from './loader';
 import ProjectFilters from './ProjectFilters';
@@ -15,6 +14,8 @@ import { useAlert } from '../components/AlertContext';
 
 // Import CSS for animations
 import '../alert-animations.css';
+import { motion } from 'motion/react';
+import AuthContainer from './auth/AuthContainer';
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -318,49 +319,24 @@ function Dashboard() {
   // Show login screen if not authenticated
   if (!isLoading && !user) {
     return (
-      <div className="min-h-screen bg-gray-950 relative overflow-hidden flex items-center justify-center p-4">
-        <div className="absolute inset-0 z-0">
-          <FlickeringGrid 
-            color="rgb(25, 100, 200)" 
-            flickerChance={0.5} 
-            maxOpacity={0.1}
-            squareSize={50}
-            gridGap={10}
-          />
-        </div>
-        
-        <div className="w-full max-w-md z-10">
-          <div className="text-center mb-6">
-            <img 
-              src="/white_logo.png" 
-              alt="NeuraVerse" 
-              className="h-12 w-auto mx-auto mb-4"
-            />
-            <h1 className="text-2xl font-bold text-white">
-              Welcome to NeuraVerse Dashboard
-            </h1>
-            <p className="text-gray-300 mt-2">
-              Sign in to access AI/ML projects and tools
-            </p>
-          </div>
-          
-          <SignIn onSuccess={() => {
-            showAlert(
-              'Authentication Successful', 
-              'Welcome to NeuraVerse Dashboard', 
-              'success'
-            );
-            fetchProjects();
-          }} />
-        </div>
-      </div>
+      <AuthContainer 
+        onSuccess={() => {
+          showAlert(
+            'Authentication Successful', 
+            'Welcome to NeuraVerse Dashboard', 
+            'success'
+          );
+          fetchProjects();
+        }} 
+      />
     );
   }
-
+  
   return (
-    <div className="min-h-screen bg-gray-950 relative overflow-hidden">
-      {/* Flickering Grid Background */}
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 to-slate-900 relative overflow-hidden">
+      {/* Animated background with enhanced effects */}
       <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_20%_30%,rgba(25,100,200,0.2),transparent_70%),radial-gradient(circle_at_80%_70%,rgba(100,50,255,0.15),transparent_50%)]"></div>
         <FlickeringGrid 
           color="rgb(25, 100, 200)" 
           flickerChance={0.2} 
@@ -370,29 +346,36 @@ function Dashboard() {
         />
       </div>
       
-      <div className="max-w-7xl mx-auto px-4 py-8 relative z-10">
-        <div className="relative flex items-center justify-between mb-8 p-6 border border-white/20 bg-slate-900/30 backdrop-blur-2xl shadow-2xl rounded-xl overflow-hidden">
-          {/* Background gradient overlay for enhanced glass effect */}
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/5 to-slate-900/10 opacity-40 z-0 mix-blend-overlay" />
-          
-          {/* Top light reflection effect */}
+      {/* Main content with responsive container */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10 relative z-10">
+        {/* Enhanced Header with responsive design */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="relative flex flex-col md:flex-row md:items-center justify-between mb-6 sm:mb-8 p-4 sm:p-6 border border-white/20 bg-slate-900/40 backdrop-blur-2xl shadow-2xl rounded-xl overflow-hidden"
+        >
+          {/* Advanced glass effects */}
+          {/* <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/5 to-slate-900/10 opacity-40 z-0 mix-blend-overlay" />
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-          
-          {/* Left light reflection effect */}
           <div className="absolute top-0 bottom-0 left-0 w-px bg-gradient-to-b from-white/30 via-blue-300/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-30 pointer-events-none" /> */}
           
-          {/* Static subtle gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-30 pointer-events-none" />
-          
-          <div className="flex flex-col items-center space-y-2">
-            <div className="flex items-center space-x-2">
-              <img 
-                src="/white_logo.png" 
-                alt="AI/ML Projects Dashboard" 
-                className="h-8 w-auto"
-              />
+          {/* Logo and title section */}
+          <div className="flex items-center justify-center md:justify-start mb-4 md:mb-0">
+            <div className="flex items-center space-x-3">
+              <motion.div
+                whileHover={{ scale: 1.05, rotate: 5 }}
+                transition={{ type: "spring", stiffness: 300 }}
+              >
+                <img 
+                  src="/white_logo.png" 
+                  alt="AI/ML Projects Dashboard" 
+                  className="h-8 w-auto"
+                />
+              </motion.div>
               <TypingAnimation
-                className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-blue-100 to-white relative z-10"
+                className="text-2xl sm:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-blue-100 to-white relative z-10"
                 duration={50}
                 as="h1"
               >
@@ -401,41 +384,125 @@ function Dashboard() {
             </div>
           </div>
           
-          <NavButtons 
-            navigate={navigate} 
-            isAdmin={isAdmin} 
-            user={user} 
-            signOut={async () => {
-              await signOut();
-              showAlert(
-                'Signed Out', 
-                'You have been successfully signed out', 
-                'info'
-              );
-              return Promise.resolve();
-            }} 
+          {/* Responsive navigation buttons */}
+          <div className="flex justify-center md:justify-end w-full md:w-auto">
+            <NavButtons 
+              navigate={navigate} 
+              isAdmin={isAdmin} 
+              user={user} 
+              signOut={async () => {
+                await signOut();
+                showAlert(
+                  'Signed Out', 
+                  'You have been successfully signed out', 
+                  'info'
+                );
+                return Promise.resolve();
+              }} 
+            />
+          </div>
+        </motion.div>
+  
+        {/* Project filters with improved styling */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2, duration: 0.5 }}
+        >
+          <ProjectFilters 
+            searchQuery={searchQuery} 
+            setSearchQuery={setSearchQuery} 
           />
-        </div>
-
-        <ProjectFilters 
-          searchQuery={searchQuery} 
-          setSearchQuery={setSearchQuery} 
-        />
-
-        <ProjectsList 
-          loading={loading}
-          searchQuery={searchQuery}
-          projects={projects}
-          filteredProjects={filteredProjects}
-          isAdmin={isAdmin}
-          navigate={navigate}
-          handleEdit={handleEdit}
-          handleDelete={handleDelete}
-          handleArchive={handleArchive}
-          handleUnarchive={handleUnarchive}
-        />
+        </motion.div>
+  
+        {/* Project list with staggered animation */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.5 }}
+          className="mt-6 sm:mt-8"
+        >
+          <ProjectsList 
+            loading={loading}
+            searchQuery={searchQuery}
+            projects={projects}
+            filteredProjects={filteredProjects}
+            isAdmin={isAdmin}
+            navigate={navigate}
+            handleEdit={handleEdit}
+            handleDelete={handleDelete}
+            handleArchive={handleArchive}
+            handleUnarchive={handleUnarchive}
+          />
+        </motion.div>
+        
+        {/* Empty state with enhanced styling */}
+        {!loading && filteredProjects.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6, duration: 0.5 }}
+            className="flex flex-col items-center justify-center py-16 px-4 rounded-xl bg-slate-900/30 backdrop-blur-sm border border-slate-700/30 mt-8"
+          >
+            <div className="p-6 rounded-full bg-slate-800/50 border border-slate-700/30 mb-4">
+              <svg className="w-12 h-12 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-medium text-white mb-2">No projects found</h3>
+            <p className="text-slate-400 text-center max-w-md mb-6">
+              {searchQuery ? 
+                `We couldn't find any projects matching "${searchQuery}". Try a different search term.` :
+                "You haven't created any projects yet. Get started by creating your first project."
+              }
+            </p>
+            
+            {isAdmin && !searchQuery && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => navigate('/new')}
+                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg shadow-lg shadow-blue-900/30 flex items-center space-x-2 font-medium transition-all duration-300 hover:shadow-blue-900/50"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                <span>Create New Project</span>
+              </motion.button>
+            )}
+          </motion.div>
+        )}
       </div>
-      <Footer />
+      
+      {/* Enhanced footer with fixed position */}
+      <div className="mt-auto">
+        <Footer />
+      </div>
+      
+      {/* Floating action button for mobile/tablet */}
+      {isAdmin && (
+        <motion.button
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.8, duration: 0.3 }}
+          onClick={() => navigate('/new')}
+          className="fixed bottom-6 right-6 lg:hidden p-4 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-900/30 hover:shadow-blue-900/50 transition-all duration-300 z-20"
+        >
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+        </motion.button>
+      )}
+      
+      {/* Loading overlay */}
+      {loading && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="p-4 rounded-xl bg-slate-800/90 border border-slate-700/50 shadow-2xl flex flex-col items-center">
+            <div className="w-16 h-16 border-4 border-t-blue-500 border-r-transparent border-b-purple-500 border-l-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-white font-medium">Loading projects...</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

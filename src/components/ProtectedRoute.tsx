@@ -1,86 +1,73 @@
-import React from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+// components/ProtectedRoute.tsx
+import React, { useEffect } from 'react';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { AlertTriangle } from 'lucide-react';
 
 interface ProtectedRouteProps {
-  adminOnly?: boolean;
   children: React.ReactNode;
+  adminOnly?: boolean;
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
-  adminOnly = false, 
-  children 
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
+  children, 
+  adminOnly = false 
 }) => {
-  const { user, isAdmin, isLoading } = useAuth();
-  const location = useLocation();
+  const { authenticated, isAdmin, isLoading } = useAuth();
   const navigate = useNavigate();
-  
-  // Check if we're on a page with a password reset token
-  const isPasswordResetAttempt = 
-    location.hash && 
-    location.hash.includes('access_token=') && 
-    location.hash.includes('type=recovery');
-  
-  // Allow access to page with reset token even if not authenticated
-  if (isPasswordResetAttempt) {
-    console.log("Password reset token detected, allowing access");
-    return <>{children}</>;
-  }
-  
-  // Show loading state while authentication is in progress
+
+  // Prevent access to admin-only routes for non-admin users
+  useEffect(() => {
+    if (!isLoading && adminOnly && !isAdmin) {
+      navigate('/dashboard');
+    }
+  }, [adminOnly, isAdmin, isLoading, navigate]);
+
+  // If still loading, show loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="flex flex-col items-center">
-          <div className="h-12 w-12 border-4 border-t-blue-600 border-gray-700 rounded-full animate-spin mb-4"></div>
-          <p className="text-gray-300">Verifying credentials...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  // If not authenticated, redirect to the signin page
-  if (!user) {
-    return <Navigate to="/signin" replace />;
-  }
-  
-  // For admin-only routes, check if the user has admin privileges
-  if (adminOnly && !isAdmin) {
-    // Show access denied screen
-    return (
-      <div className="min-h-screen bg-gray-950 text-white">
-        <div className="max-w-4xl mx-auto px-4 py-16">
-          <div className="p-8 bg-gray-900 rounded-lg border border-red-600/30">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-3 rounded-full bg-red-900/30 border border-red-700/30">
-                <AlertTriangle className="w-8 h-8 text-red-400" />
-              </div>
-              <h2 className="text-2xl font-bold text-red-400">Access Denied</h2>
-            </div>
-            
-            <p className="mb-4 text-gray-300">
-              You don't have the necessary permissions to access this page.
-            </p>
-            <p className="mb-6 text-gray-400">
-              Only administrators can access this area. You'll be redirected to the dashboard.
-            </p>
-            
-            <div className="mt-6">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-white transition-colors"
-              >
-                Return to Dashboard
-              </button>
-            </div>
+      <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-4">
+        <div className="max-w-md text-center">
+          <div className="relative w-16 h-16 mx-auto mb-6">
+            <div className="absolute inset-0 rounded-full border-4 border-gray-800/50"></div>
+            <div className="absolute inset-0 rounded-full border-4 border-t-blue-500 border-l-transparent border-r-transparent border-b-transparent animate-spin"></div>
           </div>
+          <h2 className="text-xl font-semibold text-white mb-2">Verifying Access</h2>
+          <p className="text-gray-400">Please wait while we check your permissions...</p>
         </div>
       </div>
     );
   }
-  
-  // If all checks pass, render the child components
+
+  // For admin-only routes, redirect to dashboard if not admin
+  if (adminOnly && !isAdmin) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-4">
+        <div className="max-w-md text-center p-8 bg-gray-900 rounded-lg border border-red-600/30">
+          <div className="mx-auto w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mb-6 border border-red-600/40">
+            <AlertTriangle className="h-8 w-8 text-red-500" />
+          </div>
+          <h2 className="text-xl font-semibold text-white mb-2">Access Denied</h2>
+          <p className="text-gray-400 mb-6">
+            This area requires administrator privileges. Please contact an admin if you need access.
+          </p>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="px-4 py-2 bg-blue-600 rounded-md text-white hover:bg-blue-500 transition-colors"
+          >
+            Return to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // For general protected routes that require authentication
+  if (!authenticated && adminOnly) {
+    return <Navigate to="/signin" />;
+  }
+
+  // Allow guest access to non-admin protected routes
   return <>{children}</>;
 };
 
