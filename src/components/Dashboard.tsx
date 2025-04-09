@@ -11,7 +11,7 @@ import ProjectFilters from './ProjectFilters';
 import NavButtons from './NavButtons';
 import ProjectsList from './ProjectList';
 import { useAlert } from '../components/AlertContext';
-import whiteLogo from '../assets/white_logo.png'; // Adjust path as needed
+import whiteLogo from '../components/assets/white_logo.png'; // Adjust path as needed
 
 // Import CSS for animations
 import '../alert-animations.css';
