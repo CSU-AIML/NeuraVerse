@@ -60,6 +60,7 @@ export function NewProject() {
     }
   }, [user, isAdmin, isLoading, navigate, showAlert]);
 
+  // In handleSubmit function of NewProject.tsx
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
@@ -102,9 +103,9 @@ export function NewProject() {
         readme_url: formData.get('readmeUrl') as string || null,
         screenshot_url: formData.get('screenshotUrl') as string || null,
         status: formData.get('status') as string || 'ongoing',
-        project_lead_id: user.id,
+        firebase_user_id: user.id,  // Store Firebase UID as reference
         project_lead: {
-          id: user.id,
+          firebase_uid: user.id,
           name: projectLeadName || user.display_name || 'Admin',
           position: projectLeadPosition || 'Project Lead'
         },
@@ -120,38 +121,52 @@ export function NewProject() {
         { autoClose: false }
       );
       
-      // Use select() to get back the inserted data
-      const { data, error } = await supabase
-        .from('projects')
-        .insert([projectData])
-        .select();
+      // Improved error handling
+      try {
+        const { data, error } = await supabase
+          .from('projects')
+          .insert([projectData])
+          .select();
 
-      if (error) {
+        if (error) {
+          console.error('Database Error Details:', {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint
+          });
+          
+          showAlert(
+            'Database Error', 
+            `Failed to create project: ${error.message}`, 
+            'error'
+          );
+          throw error;
+        }
+        
+        // Success alert
         showAlert(
-          'Database Error', 
-          `Failed to create project: ${error.message}`, 
-          'error'
+          'Success!', 
+          'Project created successfully', 
+          'success',
+          { autoClose: true, duration: 1500 }
         );
-        throw error;
-      }
-      
-      // Success alert
-      showAlert(
-        'Success!', 
-        'Project created successfully', 
-        'success',
-        { autoClose: true, duration: 1500 } // Auto-close after 1.5 seconds
-      );
 
-      // Redirect after a brief delay so user can see the success message
-      setTimeout(() => {
-        clearAlerts();
-        navigate('/dashboard');
-      }, 1500);
+        // Redirect after a brief delay
+        setTimeout(() => {
+          clearAlerts();
+          navigate('/dashboard');
+        }, 1500);
+      } catch (error: any) {
+        throw error; // Rethrow to be caught by outer catch
+      }
     } catch (error: any) {
       console.error('Error creating project:', error);
       
       // More detailed error message
+      if (error.code) console.error('Error code:', error.code);
+      if (error.details) console.error('Error details:', error.details);
+      
       showAlert(
         'Error', 
         `Failed to create project: ${error.message || 'Unknown error occurred'}`, 

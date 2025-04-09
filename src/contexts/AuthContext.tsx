@@ -61,24 +61,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const determineUserRole = async (email: string, uid: string): Promise<UserRole> => {
     try {
       // Special case: Make specific emails always admin
-      // You can replace this with your admin emails
       const adminEmails = ['admin@example.com', 'dhruvil7694@gmail.com']; 
       if (adminEmails.includes(email.toLowerCase())) {
         console.log('Default admin user detected');
         
-        // Also update profile to ensure persistence
+        // Update profile to ensure persistence
         try {
           const { error } = await supabase
-            .from('app.user_profiles')
+            .from('user_profiles')  // Remove 'app.' schema if not needed
             .upsert({
-              id: uid,
+              firebase_uid: uid,   // Store Firebase UID as reference
+              email: email,
               role: 'admin',
               display_name: email.split('@')[0],
+              created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'firebase_uid'  // Use Firebase UID as conflict resolution key
             });
             
           if (error) {
             console.error('Error updating admin profile:', error);
+            console.error('Error details:', JSON.stringify(error));
           }
         } catch (err) {
           console.error('Error updating admin profile:', err);
@@ -90,9 +94,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Try to fetch from profile
       try {
         const { data, error } = await supabase
-          .from('app.user_profiles')
+          .from('user_profiles')
           .select('role')
-          .eq('id', uid)
+          .eq('firebase_uid', uid)  // Query by Firebase UID
           .single();
         
         if (error) {
@@ -100,13 +104,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           
           // Create new user profile
           await supabase
-            .from('app.user_profiles')
+            .from('user_profiles')
             .upsert({
-              id: uid,
+              firebase_uid: uid,   // Use Firebase UID as reference
+              email: email,
               role: 'user',
               display_name: email.split('@')[0],
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'firebase_uid'
             });
             
           return 'user';
@@ -119,13 +126,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.error('Error fetching user profile:', err);
       }
       
-      // If all else fails, default to user role
+      // Default to user role
       return 'user';
     } catch (error) {
       console.error('Error determining user role:', error);
-      return 'user'; // Default to user role if anything fails
+      return 'user';
     }
   };
+  
 
   // Check if user is authenticated
   const checkAuthStatus = async (): Promise<boolean> => {
