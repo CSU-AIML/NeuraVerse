@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Terminal, X, AlertTriangle } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { checkSupabaseConnection, supabase } from '../lib/supabase';
 import type { ProjectTechStack } from '../types/project';
 import { useAuth } from '../contexts/AuthContext';
 import { useAlert } from '../components/AlertContext';
@@ -61,6 +61,8 @@ export function NewProject() {
   }, [user, isAdmin, isLoading, navigate, showAlert]);
 
   // In handleSubmit function of NewProject.tsx
+  
+  // Updated handleSubmit function for NewProject.tsx
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
@@ -103,7 +105,8 @@ export function NewProject() {
         readme_url: formData.get('readmeUrl') as string || null,
         screenshot_url: formData.get('screenshotUrl') as string || null,
         status: formData.get('status') as string || 'ongoing',
-        firebase_user_id: user.id,  // Store Firebase UID as reference
+        // Store Firebase UID as text to match your column type
+        firebase_user_id: user.id, 
         project_lead: {
           firebase_uid: user.id,
           name: projectLeadName || user.display_name || 'Admin',
@@ -121,8 +124,24 @@ export function NewProject() {
         { autoClose: false }
       );
       
-      // Improved error handling
+      // Check Supabase connection before attempting insert
       try {
+        // First check if we have network connectivity at all
+        try {
+          await fetch('https://www.google.com', { mode: 'no-cors', cache: 'no-store' });
+        } catch (e) {
+          throw new Error('No internet connection detected. Please check your network connection and try again.');
+        }
+        
+        // Add a connection check (import this from supabase.ts)
+        const isConnected = await checkSupabaseConnection();
+        
+        if (!isConnected) {
+          throw new Error('Unable to connect to the database. Please check your configuration and try again.');
+        }
+        
+        console.log('Attempting to insert project data:', projectData);
+        
         const { data, error } = await supabase
           .from('projects')
           .insert([projectData])
@@ -136,9 +155,24 @@ export function NewProject() {
             hint: error.hint
           });
           
+          let errorMessage = error.message;
+          
+          // Provide more specific error messages based on error codes
+          if (error.code === '23505') {
+            errorMessage = 'A project with this name already exists.';
+          } else if (error.code === '23503') {
+            errorMessage = 'Invalid reference to another resource. Check project lead information.';
+          } else if (error.code === '42P01') {
+            errorMessage = 'The projects table does not exist. Database setup issue.';
+          } else if (error.code === 'PGRST301' || error.code === 'PGRST302') {
+            errorMessage = 'Authentication error. Please log out and log back in.';
+          } else if (error.message.includes('network')) {
+            errorMessage = 'Network error. Check your internet connection.';
+          }
+          
           showAlert(
             'Database Error', 
-            `Failed to create project: ${error.message}`, 
+            `Failed to create project: ${errorMessage}`, 
             'error'
           );
           throw error;
@@ -158,7 +192,22 @@ export function NewProject() {
           navigate('/dashboard');
         }, 1500);
       } catch (error: any) {
-        throw error; // Rethrow to be caught by outer catch
+        console.error('Detailed error:', error);
+        
+        // Check for specific network errors
+        if (error.message === 'Failed to fetch') {
+          showAlert(
+            'Connection Error', 
+            'Failed to connect to the database. Please check your network connection and try again.', 
+            'error'
+          );
+        } else {
+          showAlert(
+            'Error', 
+            `Failed to create project: ${error.message || 'Unknown error occurred'}`, 
+            'error'
+          );
+        }
       }
     } catch (error: any) {
       console.error('Error creating project:', error);

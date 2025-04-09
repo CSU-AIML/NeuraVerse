@@ -15,6 +15,9 @@ import { AlertProvider } from './components/AlertContext';
 import ApiReference from './components/ApiReference';
 import Templates from './components/Templates';
 import Tutorials from './components/Tutorials';
+import DatabaseConnectionTest from './components/DatabaseConnectionTest';
+
+<DatabaseConnectionTest />
 
 function App() {
   return (

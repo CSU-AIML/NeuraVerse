@@ -65,27 +65,52 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (adminEmails.includes(email.toLowerCase())) {
         console.log('Default admin user detected');
         
-        // Update profile to ensure persistence
-        try {
-          const { error } = await supabase
-            .from('user_profiles')  // Remove 'app.' schema if not needed
-            .upsert({
-              firebase_uid: uid,   // Store Firebase UID as reference
-              email: email,
-              role: 'admin',
-              display_name: email.split('@')[0],
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            }, {
-              onConflict: 'firebase_uid'  // Use Firebase UID as conflict resolution key
-            });
-            
-          if (error) {
-            console.error('Error updating admin profile:', error);
-            console.error('Error details:', JSON.stringify(error));
+        // First check if user already exists by firebase_uid
+        const { data: existingUser, error: lookupError } = await supabase
+          .from('user_profiles')
+          .select('id, role')
+          .eq('firebase_uid', uid)
+          .single();
+        
+        if (lookupError || !existingUser) {
+          // User doesn't exist, create new user
+          try {
+            // Create profile
+            const { error: insertError } = await supabase
+              .from('user_profiles')
+              .insert({
+                display_name: email.split('@')[0],
+                firebase_uid: uid,
+                role: 'admin',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              });
+              
+            if (insertError) {
+              console.error('Error creating admin profile:', insertError);
+            }
+          } catch (err) {
+            console.error('Error creating admin profile:', err);
           }
-        } catch (err) {
-          console.error('Error updating admin profile:', err);
+        } else {
+          // User exists, update role if needed
+          if (existingUser.role !== 'admin') {
+            try {
+              const { error: updateError } = await supabase
+                .from('user_profiles')
+                .update({
+                  role: 'admin',
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', existingUser.id);  // Use the actual primary key
+                
+              if (updateError) {
+                console.error('Error updating admin role:', updateError);
+              }
+            } catch (err) {
+              console.error('Error updating admin role:', err);
+            }
+          }
         }
         
         return 'admin';
@@ -95,26 +120,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         const { data, error } = await supabase
           .from('user_profiles')
-          .select('role')
-          .eq('firebase_uid', uid)  // Query by Firebase UID
+          .select('id, role')
+          .eq('firebase_uid', uid)
           .single();
         
         if (error) {
           console.log('No profile found, creating new user profile');
           
           // Create new user profile
-          await supabase
+          const { error: insertError } = await supabase
             .from('user_profiles')
-            .upsert({
-              firebase_uid: uid,   // Use Firebase UID as reference
-              email: email,
-              role: 'user',
+            .insert({
               display_name: email.split('@')[0],
+              firebase_uid: uid,
+              role: 'user',
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
-            }, {
-              onConflict: 'firebase_uid'
             });
+            
+          if (insertError) {
+            console.error('Error creating user profile:', insertError);
+          }
             
           return 'user';
         }
@@ -183,7 +209,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Log the authentication event
       try {
         await supabase
-          .from('app.security_events')
+          .from('security_events')
           .insert({
             event_type: 'login',
             user_id: firebaseUser.uid,
@@ -214,7 +240,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (user) {
         try {
           await supabase
-            .from('app.security_events')
+            .from('security_events')
             .insert({
               event_type: 'signout',
               user_id: user.id,

@@ -1,18 +1,18 @@
-// pages/UserManagement/UserList.tsx
-import React from 'react';
-import { ChevronDown, User, Shield, CalendarIcon, ClockIcon, UserCog, Trash2 } from 'lucide-react';
-import { format } from 'date-fns';
-import { Button } from '../../components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '../../components/ui/tooltip';
+// UserManagement/UserList.tsx
+import React, { useState, useMemo } from 'react';
+import { UserPlus, UserMinus, Trash2, ChevronDown, ChevronUp, MoreVertical, AlertCircle } from 'lucide-react';
+import { UserRole } from '../../contexts/AuthContext';
 
-interface UserProfile {
-  avatar_url: any;
+// Updated interface to be more flexible with optional fields
+export interface UserProfile {
   id: string;
-  display_name: string;
-  role: string;
-  created_at: string;
-  updated_at: string;
   email?: string;
+  display_name?: string;
+  role: UserRole;
+  avatar_url?: string; // Now optional to match service definition
+  created_at?: string;
+  updated_at?: string; // Now optional to match service definition
+  last_login?: string;
 }
 
 interface UserListProps {
@@ -42,336 +42,316 @@ const UserList: React.FC<UserListProps> = ({
   onRemove,
   onPageChange
 }) => {
-  // Filter users based on search query
-  const filteredUsers = users.filter(user => {
-    if (!searchQuery) return true;
+  const [sortField, setSortField] = useState<keyof UserProfile>('created_at');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+  
+  const usersPerPage = 10;
+  
+  // Handle sort change
+  const handleSort = (field: keyof UserProfile) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+  
+  // Filter and sort users
+  const filteredAndSortedUsers = useMemo(() => {
+    // First filter by search query
+    let result = users.filter(user => {
+      const searchLower = searchQuery.toLowerCase();
+      return (
+        (user.display_name?.toLowerCase() || '').includes(searchLower) ||
+        (user.email?.toLowerCase() || '').includes(searchLower) ||
+        user.role.toLowerCase().includes(searchLower) ||
+        user.id.toLowerCase().includes(searchLower)
+      );
+    });
     
-    const query = searchQuery.toLowerCase();
-    return (
-      (user.email?.toLowerCase().includes(query) || false) ||
-      user.display_name.toLowerCase().includes(query) ||
-      user.role.toLowerCase().includes(query)
-    );
-  });
-
-  const displayedUsers = filteredUsers.slice((currentPage - 1) * 5, currentPage * 5);
-
-  // Format date helper
+    // Then sort by the selected field
+    return result.sort((a, b) => {
+      const fieldA = a[sortField];
+      const fieldB = b[sortField];
+      
+      // Safely handle undefined values
+      const valueA = fieldA !== undefined ? String(fieldA) : '';
+      const valueB = fieldB !== undefined ? String(fieldB) : '';
+      
+      if (valueA < valueB) {
+        return sortDirection === 'asc' ? -1 : 1;
+      }
+      if (valueA > valueB) {
+        return sortDirection === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+  }, [users, searchQuery, sortField, sortDirection]);
+  
+  // Paginate users
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (currentPage - 1) * usersPerPage;
+    return filteredAndSortedUsers.slice(startIndex, startIndex + usersPerPage);
+  }, [filteredAndSortedUsers, currentPage]);
+  
+  // Calculate total pages
+  const totalPages = Math.ceil(filteredAndSortedUsers.length / usersPerPage);
+  
+  // Format date for display
   const formatDate = (dateString?: string) => {
-    if (!dateString) return 'Unknown';
-    try {
-      return format(new Date(dateString), 'MMM d, yyyy h:mm a');
-    } catch (e) {
-      return 'Invalid date';
-    }
+    if (!dateString) return 'N/A';
+    const options: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    };
+    return new Date(dateString).toLocaleDateString(undefined, options);
   };
-
-  // Generate an email-like display name if email is missing
-  const getDisplayName = (user: UserProfile) => {
-    if (user.display_name && user.display_name !== 'User') {
-      return user.display_name;
-    }
-    
-    // If we have an email, use the part before @
-    if (user.email) {
-      return user.email.split('@')[0];
-    }
-    
-    // Fallback to a user ID based name
-    return `User ${user.id.substring(0, 8)}`;
+  
+  // Toggle expanded user row
+  const toggleExpandUser = (userId: string) => {
+    setExpandedUserId(expandedUserId === userId ? null : userId);
   };
-
-  if (loading) {
-    return (
-      <div className="p-12 text-center flex flex-col items-center justify-center">
-        <div className="relative w-16 h-16">
-          <div className="absolute inset-0 rounded-full border-4 border-gray-800/50"></div>
-          <div className="absolute inset-0 rounded-full border-4 border-t-blue-500 border-l-transparent border-r-transparent border-b-transparent animate-spin"></div>
-        </div>
-        <p className="text-gray-400 mt-4 text-lg">Loading user data...</p>
-        <p className="text-gray-500 mt-1 text-sm">Please wait while we fetch the latest information</p>
-      </div>
-    );
-  }
-
-  if (filteredUsers.length === 0) {
-    return (
-      <div className="p-12 text-center">
-        <div className="mx-auto h-20 w-20 bg-gray-800/50 rounded-full flex items-center justify-center mb-4">
-          <User className="h-10 w-10 text-gray-500" />
-        </div>
-        <h3 className="text-gray-300 text-lg font-medium mb-2">No users found</h3>
-        <p className="text-gray-500 max-w-md mx-auto">
-          {searchQuery 
-            ? `No users match your search criteria "${searchQuery}". Try a different search term.` 
-            : 'There are no users in the system yet. Add users to get started.'}
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900/50">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-gray-800/80 border-b border-gray-700/50 text-left">
-              <th className="px-6 py-3.5 text-xs font-semibold text-gray-300 uppercase tracking-wider">
-                <div className="flex items-center cursor-pointer hover:text-blue-400 transition-colors duration-200">
-                  User
-                  <ChevronDown className="h-4 w-4 ml-1" />
-                </div>
-              </th>
-              <th className="px-6 py-3.5 text-xs font-semibold text-gray-300 uppercase tracking-wider">
-                <div className="flex items-center cursor-pointer hover:text-blue-400 transition-colors duration-200">
-                  Role
-                  <ChevronDown className="h-4 w-4 ml-1" />
-                </div>
-              </th>
-              <th className="px-6 py-3.5 text-xs font-semibold text-gray-300 uppercase tracking-wider hidden md:table-cell">
-                <div className="flex items-center cursor-pointer hover:text-blue-400 transition-colors duration-200">
-                  Joined
-                  <ChevronDown className="h-4 w-4 ml-1" />
-                </div>
-              </th>
-              <th className="px-6 py-3.5 text-xs font-semibold text-gray-300 uppercase tracking-wider hidden lg:table-cell">
-                <div className="flex items-center cursor-pointer hover:text-blue-400 transition-colors duration-200">
-                  Last Updated
-                  <ChevronDown className="h-4 w-4 ml-1" />
-                </div>
-              </th>
-              <th className="px-6 py-3.5 text-xs font-semibold text-gray-300 uppercase tracking-wider text-right">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-800/50">
-            {displayedUsers.map((user, index) => (
-              <tr key={user.id} 
-                className={`group hover:bg-blue-900/10 transition-colors duration-200 ${
-                  index % 2 === 0 ? 'bg-gray-900/50' : 'bg-gray-900/30'
-                }`}>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0 h-10 w-10 rounded-full overflow-hidden bg-gradient-to-br from-gray-700 to-gray-800 border border-gray-700 flex items-center justify-center group-hover:border-blue-600/30 transition-all duration-200">
-                      {user.avatar_url ? (
-                        <img 
-                          src={user.avatar_url} 
-                          alt={getDisplayName(user)} 
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <User className="h-5 w-5 text-gray-300" />
-                      )}
-                    </div>
-                    <div className="ml-4">
-                      <div className="text-sm font-medium text-white group-hover:text-blue-300 transition-colors duration-200 truncate max-w-[150px] sm:max-w-xs">
-                        {getDisplayName(user)}
-                      </div>
-                      {user.email && (
-                        <div className="text-sm text-gray-400 truncate max-w-[150px] sm:max-w-xs">
-                          {user.email}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
-                    user.role === 'admin'
-                      ? 'bg-purple-900/20 text-purple-300 border-purple-700/30 group-hover:bg-purple-900/30'
-                      : 'bg-blue-900/20 text-blue-300 border-blue-700/30 group-hover:bg-blue-900/30'
-                  } transition-colors duration-200`}>
-                    {user.role === 'admin' ? (
-                      <Shield className="h-3 w-3 mr-1" />
-                    ) : (
-                      <User className="h-3 w-3 mr-1" />
-                    )}
-                    {user.role}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 hidden md:table-cell">
-                  <div className="flex items-center">
-                    <CalendarIcon className="h-3 w-3 mr-1.5 text-gray-500" />
-                    {formatDate(user.created_at)}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300 hidden lg:table-cell">
-                  <div className="flex items-center">
-                    <CalendarIcon className="h-3 w-3 mr-1.5 text-gray-500" />
-                    {formatDate(user.updated_at)}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <div className="flex justify-end space-x-2">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => user.role === 'user' ? onPromote(user.id) : onDemote(user.id)}
-                          disabled={promotingUserId === user.id || demotingUserId === user.id}
-                          className={`${
-                            user.role === 'user' 
-                              ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/20' 
-                              : 'text-orange-400 hover:text-orange-300 hover:bg-orange-900/20'
-                          } opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:opacity-100`}
-                        >
-                          {promotingUserId === user.id || demotingUserId === user.id ? (
-                            <div className="flex items-center">
-                              <div className={`h-4 w-4 border-2 ${
-                                user.role === 'user' 
-                                  ? 'border-t-blue-500 border-r-blue-500 border-b-blue-500' 
-                                  : 'border-t-orange-500 border-r-orange-500 border-b-orange-500'
-                              } border-l-transparent rounded-full animate-spin mr-2`}></div>
-                              {user.role === 'user' ? 'Promoting...' : 'Demoting...'}
-                            </div>
-                          ) : (
-                            <div className="flex items-center">
-                              {user.role === 'user' ? (
-                                <UserCog className="h-4 w-4 mr-1.5" />
-                              ) : (
-                                <User className="h-4 w-4 mr-1.5" />
-                              )}
-                              {user.role === 'user' ? 'Promote' : 'Demote'}
-                            </div>
-                          )}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {user.role === 'user' ? "Promote to Admin" : "Demote to User"}
-                      </TooltipContent>
-                    </Tooltip>
-                    
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onRemove(user.id)}
-                          disabled={removingUserId === user.id}
-                          className="text-red-400 hover:text-red-300 hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:opacity-100"
-                        >
-                          {removingUserId === user.id ? (
-                            <div className="flex items-center">
-                              <div className="h-4 w-4 border-2 border-t-red-500 border-r-red-500 border-b-red-500 border-l-transparent rounded-full animate-spin mr-2"></div>
-                              Removing...
-                            </div>
-                          ) : (
-                            <div className="flex items-center">
-                              <Trash2 className="h-4 w-4 mr-1.5" />
-                              Remove
-                            </div>
-                          )}
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        Remove User
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Table footer with pagination */}
-      <div className="bg-gradient-to-r from-gray-900/80 via-gray-800/60 to-gray-900/80 backdrop-blur-md border-t border-gray-700/40 px-6 py-5 flex flex-col sm:flex-row justify-between items-center">
-        <div className="text-sm text-gray-400 mb-4 sm:mb-0 bg-gray-800/40 px-4 py-2 rounded-lg border border-gray-700/30 shadow-inner">
-          <span className="text-gray-500">Showing </span>
-          <span className="font-semibold text-blue-400">
-            {currentPage * 5 - 4}-{Math.min(currentPage * 5, filteredUsers.length)}
-          </span>
-          <span className="text-gray-500"> of </span>
-          <span className="font-semibold text-white">{filteredUsers.length}</span>
-          <span className="text-gray-500"> users</span>
-        </div>
-        
-        <Pagination 
-          currentPage={currentPage}
-          totalPages={Math.ceil(filteredUsers.length / 5)}
-          onPageChange={onPageChange}
-        />
-      </div>
-    </>
-  );
-};
-
-// Pagination component
-interface PaginationProps {
-  currentPage: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
-}
-
-const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, onPageChange }) => {
-  if (totalPages <= 1) return null;
   
   return (
-    <div className="flex items-center bg-gray-800/50 p-1.5 rounded-xl border border-gray-700/40 shadow-lg">
-      <Button
-        variant="ghost"
-        size="sm"
-        disabled={currentPage === 1}
-        onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
-        className="relative overflow-hidden rounded-lg mr-1 border-0 text-gray-400 hover:text-white hover:bg-gray-700/80 disabled:opacity-50 disabled:bg-transparent"
-      >
-        <span className="relative z-10 flex items-center">
-          <svg className="h-4 w-4 mr-1.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          <span className="font-medium">Previous</span>
-        </span>
-      </Button>
-      
-      <div className="flex items-center px-2 border-x border-gray-700/40">
-        {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
-          const pageNum = i + 1;
-          return (
-            <span 
-              key={pageNum}
-              onClick={() => onPageChange(pageNum)}
-              className={`inline-flex items-center justify-center h-8 w-8 rounded-lg text-sm font-medium mx-0.5 cursor-pointer transition-all duration-150 ${
-                currentPage === pageNum
-                  ? "bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-md shadow-blue-900/20"
-                  : "text-gray-300 hover:bg-gray-700/70 hover:text-white"
-              }`}
-            >
-              {pageNum}
-            </span>
-          );
-        })}
-        
-        {totalPages > 3 && (
-          <>
-            <span className="mx-1 text-gray-500">...</span>
-            <span 
-              onClick={() => onPageChange(totalPages)}
-              className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-gray-300 hover:bg-gray-700/70 hover:text-white transition-colors duration-150 cursor-pointer text-sm mx-0.5"
-            >
-              {totalPages}
-            </span>
-          </>
-        )}
-      </div>
-      
-      <Button
-        variant="ghost"
-        size="sm"
-        disabled={currentPage >= totalPages}
-        onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
-        className="relative overflow-hidden rounded-lg ml-1 border-0 text-gray-400 hover:text-white hover:bg-gray-700/80 group disabled:opacity-50 disabled:bg-transparent"
-      >
-        <span className="relative z-10 flex items-center">
-          <span className="font-medium">Next</span>
-          <svg className="h-4 w-4 ml-1.5 transform group-hover:translate-x-0.5 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </span>
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-900/5 to-blue-900/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-      </Button>
+    <div className="overflow-hidden">
+      {loading ? (
+        <div className="p-8 text-center text-gray-400">
+          <div className="animate-spin h-8 w-8 border-t-2 border-blue-500 border-r-2 border-opacity-50 rounded-full mx-auto mb-4"></div>
+          <p>Loading users...</p>
+        </div>
+      ) : paginatedUsers.length === 0 ? (
+        <div className="p-8 text-center text-gray-400">
+          <AlertCircle className="h-12 w-12 mx-auto mb-3 text-gray-500" />
+          <h3 className="text-lg font-medium mb-1">No users found</h3>
+          <p className="text-sm text-gray-500">
+            {searchQuery ? 
+              `No users match the search term "${searchQuery}"` : 
+              "There are no users in the system yet"}
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-gray-300">
+              <thead className="bg-gray-800/40 text-xs uppercase text-gray-400">
+                <tr>
+                  <th 
+                    className="px-4 py-3 cursor-pointer"
+                    onClick={() => handleSort('display_name')}
+                  >
+                    <div className="flex items-center">
+                      User
+                      {sortField === 'display_name' && (
+                        sortDirection === 'asc' ? 
+                          <ChevronUp className="ml-1 h-4 w-4" /> : 
+                          <ChevronDown className="ml-1 h-4 w-4" />
+                      )}
+                    </div>
+                  </th>
+                  <th 
+                    className="px-4 py-3 cursor-pointer hidden md:table-cell"
+                    onClick={() => handleSort('email')}
+                  >
+                    <div className="flex items-center">
+                      Email
+                      {sortField === 'email' && (
+                        sortDirection === 'asc' ? 
+                          <ChevronUp className="ml-1 h-4 w-4" /> : 
+                          <ChevronDown className="ml-1 h-4 w-4" />
+                      )}
+                    </div>
+                  </th>
+                  <th 
+                    className="px-4 py-3 cursor-pointer"
+                    onClick={() => handleSort('role')}
+                  >
+                    <div className="flex items-center">
+                      Role
+                      {sortField === 'role' && (
+                        sortDirection === 'asc' ? 
+                          <ChevronUp className="ml-1 h-4 w-4" /> : 
+                          <ChevronDown className="ml-1 h-4 w-4" />
+                      )}
+                    </div>
+                  </th>
+                  <th 
+                    className="px-4 py-3 cursor-pointer hidden md:table-cell"
+                    onClick={() => handleSort('created_at')}
+                  >
+                    <div className="flex items-center">
+                      Joined
+                      {sortField === 'created_at' && (
+                        sortDirection === 'asc' ? 
+                          <ChevronUp className="ml-1 h-4 w-4" /> : 
+                          <ChevronDown className="ml-1 h-4 w-4" />
+                      )}
+                    </div>
+                  </th>
+                  <th className="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800/40">
+                {paginatedUsers.map(user => (
+                  <React.Fragment key={user.id}>
+                    <tr className="bg-gray-900/30 hover:bg-gray-800/20 transition-colors duration-150">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center space-x-3">
+                          <div className="h-10 w-10 rounded-full bg-gray-700/50 flex items-center justify-center text-blue-400 uppercase font-semibold overflow-hidden">
+                            {user.avatar_url ? (
+                              <img 
+                                src={user.avatar_url} 
+                                alt={user.display_name || 'User'} 
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <span>{(user.display_name || 'U')[0]}</span>
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-medium text-white">{user.display_name || 'Unknown User'}</div>
+                            <div className="text-xs text-gray-400 md:hidden">{user.email || 'No email'}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell">{user.email || 'No email'}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          user.role === 'admin' 
+                            ? 'bg-blue-900/30 text-blue-400 border border-blue-600/30' 
+                            : 'bg-gray-800/50 text-gray-300 border border-gray-700/50'
+                        }`}>
+                          {user.role === 'admin' ? 'Admin' : 'User'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm hidden md:table-cell">
+                        {formatDate(user.created_at)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end space-x-2">
+                          {user.role === 'user' ? (
+                            <button
+                              onClick={() => onPromote(user.id)}
+                              disabled={!!promotingUserId}
+                              className={`p-1.5 rounded-lg text-blue-400 hover:bg-blue-900/20 hover:text-blue-300 transition-colors
+                                ${promotingUserId === user.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              title="Promote to Admin"
+                            >
+                              <UserPlus className="h-4 w-4" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => onDemote(user.id)}
+                              disabled={!!demotingUserId}
+                              className={`p-1.5 rounded-lg text-orange-400 hover:bg-orange-900/20 hover:text-orange-300 transition-colors
+                                ${demotingUserId === user.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              title="Demote to Standard User"
+                            >
+                              <UserMinus className="h-4 w-4" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => onRemove(user.id)}
+                            disabled={!!removingUserId}
+                            className={`p-1.5 rounded-lg text-red-400 hover:bg-red-900/20 hover:text-red-300 transition-colors
+                              ${removingUserId === user.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            title="Remove User"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                          <button 
+                            onClick={() => toggleExpandUser(user.id)}
+                            className="block sm:hidden p-1.5 rounded-lg text-gray-400 hover:bg-gray-800/40 transition-colors"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    
+                    {/* Mobile expanded view */}
+                    {expandedUserId === user.id && (
+                      <tr className="sm:hidden bg-gray-800/30">
+                        <td colSpan={5} className="px-4 py-3">
+                          <div className="grid grid-cols-2 gap-y-2 text-sm">
+                            <div className="text-gray-400">Email:</div>
+                            <div>{user.email || 'N/A'}</div>
+                            
+                            <div className="text-gray-400">Joined:</div>
+                            <div>{formatDate(user.created_at)}</div>
+                            
+                            <div className="text-gray-400">Last login:</div>
+                            <div>{formatDate(user.last_login)}</div>
+                            
+                            <div className="text-gray-400">ID:</div>
+                            <div className="truncate">{user.id}</div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="px-4 py-3 bg-gray-800/20 border-t border-gray-800/40 flex justify-between items-center">
+              <div className="text-sm text-gray-400">
+                Showing <span className="font-medium text-white">{(currentPage - 1) * usersPerPage + 1}</span> to <span className="font-medium text-white">
+                  {Math.min(currentPage * usersPerPage, filteredAndSortedUsers.length)}
+                </span> of <span className="font-medium text-white">{filteredAndSortedUsers.length}</span> users
+              </div>
+              
+              <div className="flex space-x-1">
+                <button
+                  onClick={() => onPageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className={`px-3 py-1 rounded-md ${
+                    currentPage === 1 
+                      ? 'text-gray-500 cursor-not-allowed' 
+                      : 'text-gray-300 hover:bg-gray-700/50'
+                  }`}
+                >
+                  Previous
+                </button>
+                
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <button
+                    key={page}
+                    onClick={() => onPageChange(page)}
+                    className={`px-3 py-1 rounded-md ${
+                      currentPage === page 
+                        ? 'bg-blue-600/70 text-white' 
+                        : 'text-gray-300 hover:bg-gray-700/50'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                
+                <button
+                  onClick={() => onPageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className={`px-3 py-1 rounded-md ${
+                    currentPage === totalPages 
+                      ? 'text-gray-500 cursor-not-allowed' 
+                      : 'text-gray-300 hover:bg-gray-700/50'
+                  }`}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 };
