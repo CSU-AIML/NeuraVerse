@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Terminal, X, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Plus, X, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { ProjectTechStack } from '../types/project';
-import { SignIn } from '../SignIn';
 import { Project, ProjectStatus } from '../pages/NewProject';
 import { useAlert } from '../components/AlertContext';
+import { useAuth } from '../contexts/AuthContext'; // Use AuthContext instead
 import Loader from './loader';
 
 // Import CSS for animations (same as in NewProject)
@@ -18,9 +18,6 @@ export function EditProject() {
   const [isLoading, setIsLoading] = useState(true);
   const [techStack, setTechStack] = useState<ProjectTechStack[]>([]);
   const [newTech, setNewTech] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [authChecking, setAuthChecking] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
   const [projectLeadName, setProjectLeadName] = useState('');
   const [projectLeadPosition, setProjectLeadPosition] = useState('');
   
@@ -29,34 +26,9 @@ export function EditProject() {
   
   // Use alert context
   const { showAlert, clearAlerts } = useAlert();
-
-  // Function to check authentication status
-  const checkAuthStatus = async () => {
-    try {
-      const { data, error } = await supabase.auth.getUser();
-      
-      if (error) {
-        console.error('Auth error:', error);
-        setIsAuthenticated(false);
-        return;
-      }
-      
-      if (!data.user) {
-        console.log('No user found');
-        setIsAuthenticated(false);
-        return;
-      }
-      
-      console.log('User authenticated:', data.user.id);
-      setUserId(data.user.id);
-      setIsAuthenticated(true);
-    } catch (err) {
-      console.error('Error checking authentication:', err);
-      setIsAuthenticated(false);
-    } finally {
-      setAuthChecking(false);
-    }
-  };
+  
+  // FIXED: Use AuthContext instead of manual Supabase auth checking
+  const { authenticated, isAdmin, user, isLoading: authLoading } = useAuth();
 
   // Fetch project data
   const fetchProject = async () => {
@@ -162,37 +134,55 @@ export function EditProject() {
     }
   };
 
-  // Check authentication status when component mounts
+  // FIXED: Wait for auth to load, then fetch project
   useEffect(() => {
-    checkAuthStatus();
+    console.log('=== EDIT PROJECT AUTH CHECK ===');
+    console.log('Auth loading:', authLoading);
+    console.log('Authenticated:', authenticated);
+    console.log('Is admin:', isAdmin);
+    console.log('User:', user);
     
-    // Listen for auth state changes
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth state changed:', event, session);
-      checkAuthStatus();
-    });
-    
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
-
-  // Fetch project data once authenticated and component is mounted
-  useEffect(() => {
-    if (isAuthenticated && !authChecking) {
-      console.log('Authentication confirmed, fetching project');
-      fetchProject();
+    if (!authLoading) {
+      if (authenticated && isAdmin) {
+        console.log('✅ Auth confirmed, fetching project');
+        fetchProject();
+      } else if (authenticated && !isAdmin) {
+        console.log('❌ User authenticated but not admin');
+        showAlert(
+          'Access Denied',
+          'You need admin privileges to edit projects',
+          'error'
+        );
+        setTimeout(() => navigate('/'), 2000);
+      } else {
+        console.log('❌ User not authenticated');
+        showAlert(
+          'Authentication Required',
+          'Please sign in to continue',
+          'error'
+        );
+        setTimeout(() => navigate('/signin'), 2000);
+      }
     }
-  }, [isAuthenticated, authChecking, id]);
+  }, [authLoading, authenticated, isAdmin, id]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    if (!isAuthenticated || !userId) {
+    if (!authenticated || !user) {
       showAlert(
         'Authentication Required',
         'You must be logged in to update a project. Please sign in first.',
         'warning'
+      );
+      return;
+    }
+    
+    if (!isAdmin) {
+      showAlert(
+        'Permission Denied',
+        'You need admin privileges to update projects.',
+        'error'
       );
       return;
     }
@@ -237,7 +227,7 @@ export function EditProject() {
         screenshot_url: formData.get('screenshotUrl') as string || null,
         status: formData.get('status') as ProjectStatus || 'ongoing',
         project_lead: {
-          id: userId,
+          id: user.id, // Use Supabase User ID
           name: projectLeadName || null,
           position: projectLeadPosition || null
         },
@@ -253,13 +243,6 @@ export function EditProject() {
         'info', 
         { autoClose: false }
       );
-      
-      // Try refreshing the session before submitting
-      const { error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError) {
-        console.warn('Could not refresh session:', refreshError);
-        // Continue anyway, might still work
-      }
       
       // Update the project
       const { data, error } = await supabase
@@ -303,29 +286,11 @@ export function EditProject() {
         errorMessage += error.message;
       }
       
-      if (error.code === '401') {
-        errorMessage += ' Authentication error. Please sign in again.';
-        showAlert(
-          'Authentication Error',
-          'Your session has expired. Please sign in again.',
-          'error'
-        );
-        // Try to sign out and refresh auth status
-        await supabase.auth.signOut();
-        checkAuthStatus();
-      } else if (error.code === '403') {
-        showAlert(
-          'Permission Denied',
-          'You do not have permission to update this project.',
-          'error'
-        );
-      } else {
-        showAlert(
-          'Error', 
-          errorMessage, 
-          'error'
-        );
-      }
+      showAlert(
+        'Error', 
+        errorMessage, 
+        'error'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -367,19 +332,8 @@ export function EditProject() {
     );
   };
 
-  // Add this debug component to see what's happening
-  if (process.env.NODE_ENV === 'development') {
-    console.log('Current state:', {
-      isAuthenticated,
-      authChecking,
-      isLoading,
-      project,
-      id
-    });
-  }
-
   // Show loading state while checking authentication
-  if (authChecking) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
         <div className="animate-pulse">
@@ -389,36 +343,7 @@ export function EditProject() {
     );
   }
 
-  // Show auth UI if not authenticated
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gray-950 text-white">
-        <div className="max-w-4xl mx-auto px-4 py-8">
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-gray-400 hover:text-white mb-8 transition-all duration-300 transform hover:translate-x-1"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Back to Dashboard
-          </button>
-          
-          <div className="p-8 bg-gray-900/70 backdrop-blur-xl rounded-lg border border-red-600/30 shadow-xl animate-fadeIn">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 rounded-full bg-red-900/30 border border-red-700/30 animate-pulse">
-                <AlertTriangle className="w-8 h-8 text-red-400" />
-              </div>
-              <h2 className="text-2xl font-bold text-red-400">Authentication Required</h2>
-            </div>
-            
-            <p className="mb-4 text-gray-300">You need to be signed in to edit a project.</p>
-            <p className="mb-6 text-gray-400">Please sign in below.</p>
-            
-            <SignIn onSuccess={checkAuthStatus} />
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // REMOVED: Manual auth checking - now handled by ProtectedRoute
   
   // Show loading while fetching project
   if (isLoading) {
@@ -483,8 +408,7 @@ export function EditProject() {
         </div>
       </div>
 
-      {/* Main Content Area with form */}
-      {/* Main Content Area with form */}
+      {/* Rest of your form JSX stays exactly the same... */}
       <div className="max-w-screen-2xl mx-auto px-6 py-8">
         <form onSubmit={handleSubmit} className="bg-gray-900/50 backdrop-blur-xl rounded-xl border border-gray-800/50 shadow-2xl transition-all duration-500 hover:shadow-blue-900/20 animate-fadeIn">
           {/* Form Header */}
@@ -791,4 +715,5 @@ export function EditProject() {
         </form>
       </div>
     </div>
-  )};
+  )
+}

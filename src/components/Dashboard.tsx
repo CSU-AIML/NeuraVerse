@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FlickeringGrid } from './magicui/flickering-grid';
+// REMOVED: import { FlickeringGrid } from './magicui/flickering-grid';
 import { TypingAnimation } from './magicui/typing-animation';
 import { supabase } from '../lib/supabase';
 import type { Project } from '../types/project';
@@ -334,17 +334,30 @@ function Dashboard() {
   }
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 to-slate-900 relative overflow-hidden">
-      {/* Animated background with enhanced effects */}
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-slate-900 to-gray-900 relative overflow-hidden">
+      {/* OPTIMIZED: Static background with CSS-only effects - No JavaScript animations */}
       <div className="absolute inset-0 z-0">
-        <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_20%_30%,rgba(25,100,200,0.2),transparent_70%),radial-gradient(circle_at_80%_70%,rgba(100,50,255,0.15),transparent_50%)]"></div>
-        <FlickeringGrid 
-          color="rgb(25, 100, 200)" 
-          flickerChance={0.2} 
-          maxOpacity={0.15}
-          squareSize={5}
-          gridGap={8}
-        />
+        {/* Static gradient overlays */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(25,100,200,0.15),transparent_70%),radial-gradient(circle_at_80%_70%,rgba(100,50,255,0.1),transparent_50%)]"></div>
+        
+        {/* Static geometric pattern */}
+        <div className="absolute inset-0 opacity-[0.03]" style={{
+          backgroundImage: `
+            linear-gradient(45deg, transparent 35%, rgba(255,255,255,0.1) 50%, transparent 65%),
+            linear-gradient(-45deg, transparent 35%, rgba(255,255,255,0.05) 50%, transparent 65%)
+          `,
+          backgroundSize: '60px 60px, 40px 40px'
+        }}></div>
+        
+        {/* Subtle dots pattern */}
+        <div className="absolute inset-0 opacity-[0.02]" style={{
+          backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1px)',
+          backgroundSize: '20px 20px'
+        }}></div>
+        
+        {/* Animated subtle glow - very lightweight */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }}></div>
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '6s', animationDelay: '2s' }}></div>
       </div>
       
       {/* Main content with responsive container */}
@@ -356,12 +369,6 @@ function Dashboard() {
           transition={{ duration: 0.5 }}
           className="relative flex flex-col md:flex-row md:items-center justify-between mb-6 sm:mb-8 p-4 sm:p-6 border border-white/20 bg-slate-900/40 backdrop-blur-2xl shadow-2xl rounded-xl overflow-hidden"
         >
-          {/* Advanced glass effects */}
-          {/* <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/5 to-slate-900/10 opacity-40 z-0 mix-blend-overlay" />
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-          <div className="absolute top-0 bottom-0 left-0 w-px bg-gradient-to-b from-white/30 via-blue-300/20 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-30 pointer-events-none" /> */}
-          
           {/* Logo and title section */}
           <div className="flex items-center justify-center md:justify-start mb-4 md:mb-0">
             <div className="flex items-center space-x-3">

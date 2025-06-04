@@ -1,6 +1,6 @@
-// components/ProtectedRoute.tsx
-import React, { useEffect } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+// components/ProtectedRoute.tsx - FIXED VERSION
+import React from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { AlertTriangle } from 'lucide-react';
 
@@ -14,17 +14,19 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   adminOnly = false 
 }) => {
   const { authenticated, isAdmin, isLoading } = useAuth();
-  const navigate = useNavigate();
+  const location = useLocation();
 
-  // Prevent access to admin-only routes for non-admin users
-  useEffect(() => {
-    if (!isLoading && adminOnly && !isAdmin) {
-      navigate('/dashboard');
-    }
-  }, [adminOnly, isAdmin, isLoading, navigate]);
+  // Debug logs (remove these after fixing)
+  console.log('=== PROTECTED ROUTE CHECK ===');
+  console.log('Current path:', location.pathname);
+  console.log('Admin only required:', adminOnly);
+  console.log('Is authenticated:', authenticated);
+  console.log('Is admin:', isAdmin);
+  console.log('Loading:', isLoading);
 
   // If still loading, show loading state
   if (isLoading) {
+    console.log('🔄 Auth loading...');
     return (
       <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-4">
         <div className="max-w-md text-center">
@@ -39,8 +41,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // For admin-only routes, redirect to dashboard if not admin
+  // FIXED: Check authentication first (for ALL protected routes)
+  if (!authenticated) {
+    console.log('❌ Not authenticated, redirecting to signin');
+    return <Navigate to="/signin" state={{ from: location }} replace />;
+  }
+
+  // FIXED: Then check admin permissions if required
   if (adminOnly && !isAdmin) {
+    console.log('❌ Admin required but user is not admin');
     return (
       <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-4">
         <div className="max-w-md text-center p-8 bg-gray-900 rounded-lg border border-red-600/30">
@@ -52,7 +61,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
             This area requires administrator privileges. Please contact an admin if you need access.
           </p>
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => window.location.href = '/dashboard'}
             className="px-4 py-2 bg-blue-600 rounded-md text-white hover:bg-blue-500 transition-colors"
           >
             Return to Dashboard
@@ -62,12 +71,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // For general protected routes that require authentication
-  if (!authenticated && adminOnly) {
-    return <Navigate to="/signin" />;
-  }
-
-  // Allow guest access to non-admin protected routes
+  console.log('✅ Access granted');
+  // All checks passed - render the protected content
   return <>{children}</>;
 };
 

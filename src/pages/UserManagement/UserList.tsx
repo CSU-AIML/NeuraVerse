@@ -1,18 +1,33 @@
-// UserManagement/UserList.tsx
+// UserManagement/UserList.tsx - FIXED VERSION (minimal, existing columns only)
 import React, { useState, useMemo } from 'react';
-import { UserPlus, UserMinus, Trash2, ChevronDown, ChevronUp, MoreVertical, AlertCircle } from 'lucide-react';
+import { 
+  UserPlus, 
+  UserMinus, 
+  Trash2, 
+  ChevronDown, 
+  ChevronUp, 
+  MoreVertical, 
+  AlertCircle,
+  Mail,
+  Shield,
+  Eye,
+  EyeOff,
+  Calendar,
+  User
+} from 'lucide-react';
 import { UserRole } from '../../contexts/AuthContext';
 
-// Updated interface to be more flexible with optional fields
+// Simplified interface to match your actual database schema
 export interface UserProfile {
   id: string;
   email?: string;
   display_name?: string;
   role: UserRole;
-  avatar_url?: string; // Now optional to match service definition
+  avatar_url: string;
   created_at?: string;
-  updated_at?: string; // Now optional to match service definition
+  updated_at: string;
   last_login?: string;
+  _databaseId?: number;
 }
 
 interface UserListProps {
@@ -45,6 +60,7 @@ const UserList: React.FC<UserListProps> = ({
   const [sortField, setSortField] = useState<keyof UserProfile>('created_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+  const [showEmails, setShowEmails] = useState(true);
   
   const usersPerPage = 10;
   
@@ -116,9 +132,40 @@ const UserList: React.FC<UserListProps> = ({
   const toggleExpandUser = (userId: string) => {
     setExpandedUserId(expandedUserId === userId ? null : userId);
   };
+
+  // Get user stats for admin dashboard
+  const userStats = useMemo(() => {
+    return {
+      total: users.length,
+      admins: users.filter(u => u.role === 'admin').length,
+      users: users.filter(u => u.role === 'user').length
+    };
+  }, [users]);
   
   return (
     <div className="overflow-hidden">
+      {/* Admin Controls Header */}
+      <div className="bg-slate-800/30 border-b border-slate-700/30 p-4 flex justify-between items-center">
+        <div className="flex items-center gap-4">
+          <div className="text-sm text-slate-300">
+            <span className="font-medium">Total:</span> {userStats.total} | 
+            <span className="font-medium text-blue-400 ml-2">Admins:</span> {userStats.admins} | 
+            <span className="font-medium text-green-400 ml-2">Users:</span> {userStats.users}
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowEmails(!showEmails)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-slate-700/50 hover:bg-slate-600/50 
+              border border-slate-600/30 rounded-lg text-sm transition-colors"
+          >
+            {showEmails ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            {showEmails ? 'Hide Emails' : 'Show Emails'}
+          </button>
+        </div>
+      </div>
+
       {loading ? (
         <div className="p-8 text-center text-gray-400">
           <div className="animate-spin h-8 w-8 border-t-2 border-blue-500 border-r-2 border-opacity-50 rounded-full mx-auto mb-4"></div>
@@ -136,13 +183,13 @@ const UserList: React.FC<UserListProps> = ({
         </div>
       ) : (
         <>
-          {/* Table */}
+          {/* Simplified Table */}
           <div className="overflow-x-auto">
             <table className="w-full text-left text-gray-300">
               <thead className="bg-gray-800/40 text-xs uppercase text-gray-400">
                 <tr>
                   <th 
-                    className="px-4 py-3 cursor-pointer"
+                    className="px-4 py-4 cursor-pointer hover:bg-gray-700/30"
                     onClick={() => handleSort('display_name')}
                   >
                     <div className="flex items-center">
@@ -154,24 +201,28 @@ const UserList: React.FC<UserListProps> = ({
                       )}
                     </div>
                   </th>
+                  {showEmails && (
+                    <th 
+                      className="px-4 py-4 cursor-pointer hover:bg-gray-700/30 hidden md:table-cell"
+                      onClick={() => handleSort('email')}
+                    >
+                      <div className="flex items-center">
+                        <Mail className="w-4 h-4 mr-1" />
+                        Email
+                        {sortField === 'email' && (
+                          sortDirection === 'asc' ? 
+                            <ChevronUp className="ml-1 h-4 w-4" /> : 
+                            <ChevronDown className="ml-1 h-4 w-4" />
+                        )}
+                      </div>
+                    </th>
+                  )}
                   <th 
-                    className="px-4 py-3 cursor-pointer hidden md:table-cell"
-                    onClick={() => handleSort('email')}
-                  >
-                    <div className="flex items-center">
-                      Email
-                      {sortField === 'email' && (
-                        sortDirection === 'asc' ? 
-                          <ChevronUp className="ml-1 h-4 w-4" /> : 
-                          <ChevronDown className="ml-1 h-4 w-4" />
-                      )}
-                    </div>
-                  </th>
-                  <th 
-                    className="px-4 py-3 cursor-pointer"
+                    className="px-4 py-4 cursor-pointer hover:bg-gray-700/30"
                     onClick={() => handleSort('role')}
                   >
                     <div className="flex items-center">
+                      <Shield className="w-4 h-4 mr-1" />
                       Role
                       {sortField === 'role' && (
                         sortDirection === 'asc' ? 
@@ -181,10 +232,11 @@ const UserList: React.FC<UserListProps> = ({
                     </div>
                   </th>
                   <th 
-                    className="px-4 py-3 cursor-pointer hidden md:table-cell"
+                    className="px-4 py-4 cursor-pointer hover:bg-gray-700/30 hidden md:table-cell"
                     onClick={() => handleSort('created_at')}
                   >
                     <div className="flex items-center">
+                      <Calendar className="w-4 h-4 mr-1" />
                       Joined
                       {sortField === 'created_at' && (
                         sortDirection === 'asc' ? 
@@ -193,80 +245,138 @@ const UserList: React.FC<UserListProps> = ({
                       )}
                     </div>
                   </th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  <th className="px-4 py-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800/40">
                 {paginatedUsers.map(user => (
                   <React.Fragment key={user.id}>
-                    <tr className="bg-gray-900/30 hover:bg-gray-800/20 transition-colors duration-150">
-                      <td className="px-4 py-3">
+                    <tr className="bg-gray-900/30 hover:bg-gray-800/40 transition-colors duration-200">
+                      <td className="px-4 py-4">
                         <div className="flex items-center space-x-3">
-                          <div className="h-10 w-10 rounded-full bg-gray-700/50 flex items-center justify-center text-blue-400 uppercase font-semibold overflow-hidden">
+                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 
+                            flex items-center justify-center text-white font-semibold overflow-hidden border-2 border-slate-600/30">
                             {user.avatar_url ? (
                               <img 
                                 src={user.avatar_url} 
                                 alt={user.display_name || 'User'} 
                                 className="h-full w-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  if (e.currentTarget.nextElementSibling) {
+                                    (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
+                                  }
+                                }}
                               />
-                            ) : (
-                              <span>{(user.display_name || 'U')[0]}</span>
-                            )}
+                            ) : null}
+                            <div className={`${user.avatar_url ? 'hidden' : 'flex'} items-center justify-center h-full w-full`}>
+                              <span>{(user.display_name || user.email || 'U')[0].toUpperCase()}</span>
+                            </div>
                           </div>
                           <div>
-                            <div className="font-medium text-white">{user.display_name || 'Unknown User'}</div>
-                            <div className="text-xs text-gray-400 md:hidden">{user.email || 'No email'}</div>
+                            <div className="font-medium text-white">
+                              {user.display_name || 'Unknown User'}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              ID: {user.id.slice(0, 8)}...
+                            </div>
+                            {/* Show email on mobile if emails are visible */}
+                            {showEmails && (
+                              <div className="text-xs text-gray-400 md:hidden">
+                                {user.email || 'No email'}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 hidden md:table-cell">{user.email || 'No email'}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 text-xs rounded-full ${
+                      
+                      {showEmails && (
+                        <td className="px-4 py-4 hidden md:table-cell">
+                          <span className="text-sm">{user.email || 'No email'}</span>
+                        </td>
+                      )}
+                      
+                      <td className="px-4 py-4">
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg ${
                           user.role === 'admin' 
-                            ? 'bg-blue-900/30 text-blue-400 border border-blue-600/30' 
-                            : 'bg-gray-800/50 text-gray-300 border border-gray-700/50'
+                            ? 'bg-gradient-to-r from-blue-600/30 to-purple-600/30 text-blue-300 border border-blue-500/30' 
+                            : 'bg-gray-700/50 text-gray-300 border border-gray-600/30'
                         }`}>
+                          {user.role === 'admin' ? (
+                            <Shield className="w-3 h-3" />
+                          ) : (
+                            <User className="w-3 h-3" />
+                          )}
                           {user.role === 'admin' ? 'Admin' : 'User'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm hidden md:table-cell">
-                        {formatDate(user.created_at)}
+                      
+                      <td className="px-4 py-4 text-sm hidden md:table-cell">
+                        <div className="text-gray-300">
+                          {formatDate(user.created_at)}
+                        </div>
+                        {user.last_login && (
+                          <div className="text-xs text-gray-400">
+                            Last: {formatDate(user.last_login)}
+                          </div>
+                        )}
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      
+                      <td className="px-4 py-4 text-right">
                         <div className="flex items-center justify-end space-x-2">
                           {user.role === 'user' ? (
                             <button
                               onClick={() => onPromote(user.id)}
                               disabled={!!promotingUserId}
-                              className={`p-1.5 rounded-lg text-blue-400 hover:bg-blue-900/20 hover:text-blue-300 transition-colors
-                                ${promotingUserId === user.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              className={`p-2 rounded-lg text-blue-400 hover:bg-blue-900/30 hover:text-blue-300 
+                                transition-all duration-200 border border-transparent hover:border-blue-500/30 ${
+                                promotingUserId === user.id ? 'opacity-50 cursor-not-allowed' : ''
+                              }`}
                               title="Promote to Admin"
                             >
-                              <UserPlus className="h-4 w-4" />
+                              {promotingUserId === user.id ? (
+                                <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <UserPlus className="h-4 w-4" />
+                              )}
                             </button>
                           ) : (
                             <button
                               onClick={() => onDemote(user.id)}
                               disabled={!!demotingUserId}
-                              className={`p-1.5 rounded-lg text-orange-400 hover:bg-orange-900/20 hover:text-orange-300 transition-colors
-                                ${demotingUserId === user.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              className={`p-2 rounded-lg text-orange-400 hover:bg-orange-900/30 hover:text-orange-300 
+                                transition-all duration-200 border border-transparent hover:border-orange-500/30 ${
+                                demotingUserId === user.id ? 'opacity-50 cursor-not-allowed' : ''
+                              }`}
                               title="Demote to Standard User"
                             >
-                              <UserMinus className="h-4 w-4" />
+                              {demotingUserId === user.id ? (
+                                <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <UserMinus className="h-4 w-4" />
+                              )}
                             </button>
                           )}
+                          
                           <button
                             onClick={() => onRemove(user.id)}
                             disabled={!!removingUserId}
-                            className={`p-1.5 rounded-lg text-red-400 hover:bg-red-900/20 hover:text-red-300 transition-colors
-                              ${removingUserId === user.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`p-2 rounded-lg text-red-400 hover:bg-red-900/30 hover:text-red-300 
+                              transition-all duration-200 border border-transparent hover:border-red-500/30 ${
+                              removingUserId === user.id ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
                             title="Remove User"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            {removingUserId === user.id ? (
+                              <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
                           </button>
+                          
                           <button 
                             onClick={() => toggleExpandUser(user.id)}
-                            className="block sm:hidden p-1.5 rounded-lg text-gray-400 hover:bg-gray-800/40 transition-colors"
+                            className="block sm:hidden p-2 rounded-lg text-gray-400 hover:bg-gray-800/40 transition-colors"
                           >
                             <MoreVertical className="h-4 w-4" />
                           </button>
@@ -276,20 +386,26 @@ const UserList: React.FC<UserListProps> = ({
                     
                     {/* Mobile expanded view */}
                     {expandedUserId === user.id && (
-                      <tr className="sm:hidden bg-gray-800/30">
-                        <td colSpan={5} className="px-4 py-3">
-                          <div className="grid grid-cols-2 gap-y-2 text-sm">
-                            <div className="text-gray-400">Email:</div>
-                            <div>{user.email || 'N/A'}</div>
-                            
-                            <div className="text-gray-400">Joined:</div>
-                            <div>{formatDate(user.created_at)}</div>
-                            
-                            <div className="text-gray-400">Last login:</div>
-                            <div>{formatDate(user.last_login)}</div>
-                            
-                            <div className="text-gray-400">ID:</div>
-                            <div className="truncate">{user.id}</div>
+                      <tr className="sm:hidden bg-slate-800/40">
+                        <td colSpan={5} className="px-4 py-4">
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              {showEmails && (
+                                <>
+                                  <div className="text-gray-400">Email:</div>
+                                  <div>{user.email || 'N/A'}</div>
+                                </>
+                              )}
+                              
+                              <div className="text-gray-400">Joined:</div>
+                              <div>{formatDate(user.created_at)}</div>
+                              
+                              <div className="text-gray-400">Last login:</div>
+                              <div>{formatDate(user.last_login)}</div>
+                              
+                              <div className="text-gray-400">Full ID:</div>
+                              <div className="truncate font-mono text-xs">{user.id}</div>
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -302,47 +418,54 @@ const UserList: React.FC<UserListProps> = ({
           
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="px-4 py-3 bg-gray-800/20 border-t border-gray-800/40 flex justify-between items-center">
+            <div className="px-4 py-4 bg-slate-800/30 border-t border-slate-700/30 flex flex-col sm:flex-row justify-between items-center gap-4">
               <div className="text-sm text-gray-400">
-                Showing <span className="font-medium text-white">{(currentPage - 1) * usersPerPage + 1}</span> to <span className="font-medium text-white">
+                Showing <span className="font-medium text-white">{(currentPage - 1) * usersPerPage + 1}</span> to{' '}
+                <span className="font-medium text-white">
                   {Math.min(currentPage * usersPerPage, filteredAndSortedUsers.length)}
-                </span> of <span className="font-medium text-white">{filteredAndSortedUsers.length}</span> users
+                </span> of{' '}
+                <span className="font-medium text-white">{filteredAndSortedUsers.length}</span> users
               </div>
               
-              <div className="flex space-x-1">
+              <div className="flex items-center space-x-1">
                 <button
                   onClick={() => onPageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className={`px-3 py-1 rounded-md ${
+                  className={`px-3 py-2 rounded-lg text-sm ${
                     currentPage === 1 
                       ? 'text-gray-500 cursor-not-allowed' 
-                      : 'text-gray-300 hover:bg-gray-700/50'
+                      : 'text-gray-300 hover:bg-gray-700/50 border border-gray-600/30'
                   }`}
                 >
                   Previous
                 </button>
                 
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                  <button
-                    key={page}
-                    onClick={() => onPageChange(page)}
-                    className={`px-3 py-1 rounded-md ${
-                      currentPage === page 
-                        ? 'bg-blue-600/70 text-white' 
-                        : 'text-gray-300 hover:bg-gray-700/50'
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ))}
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  const page = currentPage <= 3 ? i + 1 : currentPage - 2 + i;
+                  if (page > totalPages) return null;
+                  
+                  return (
+                    <button
+                      key={page}
+                      onClick={() => onPageChange(page)}
+                      className={`px-3 py-2 rounded-lg text-sm ${
+                        currentPage === page 
+                          ? 'bg-blue-600/70 text-white border border-blue-500/50' 
+                          : 'text-gray-300 hover:bg-gray-700/50 border border-gray-600/30'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
                 
                 <button
                   onClick={() => onPageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className={`px-3 py-1 rounded-md ${
+                  className={`px-3 py-2 rounded-lg text-sm ${
                     currentPage === totalPages 
                       ? 'text-gray-500 cursor-not-allowed' 
-                      : 'text-gray-300 hover:bg-gray-700/50'
+                      : 'text-gray-300 hover:bg-gray-700/50 border border-gray-600/30'
                   }`}
                 >
                   Next
