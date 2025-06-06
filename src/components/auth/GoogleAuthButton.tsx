@@ -1,5 +1,5 @@
 // components/auth/GoogleAuthButton.tsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button } from '../ui/button';
 import { signInWithGoogle } from '../../lib/firebase';
 import { useAuth } from '../../contexts/AuthContext';
