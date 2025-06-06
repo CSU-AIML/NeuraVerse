@@ -32,12 +32,26 @@ function Dashboard() {
     fetchProjects();
     
     // Set up a subscription to listen for changes to the projects table
-    const projectsSubscription = supabase
+    interface ProjectsSubscriptionPayload {
+      type: string;
+      table: string;
+      schema: string;
+      record: Record<string, any>;
+      old_record: Record<string, any> | null;
+      [key: string]: any;
+    }
+
+    // Type for the Supabase channel
+    const projectsSubscription: ReturnType<typeof supabase.channel> = supabase
       .channel('public:projects')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, payload => {
+      .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'projects' },
+      (payload: ProjectsSubscriptionPayload) => {
         console.log('Change received!', payload);
         fetchProjects();
-      })
+      }
+      )
       .subscribe();
       
     return () => {
@@ -89,20 +103,55 @@ function Dashboard() {
       
       // Process projects to ensure all required fields exist
       // Process projects to ensure all required fields exist
-      const processedProjects = data.map(project => {
+      interface ProjectLead {
+        name: string;
+        [key: string]: any;
+      }
+
+      interface TechStackItem {
+        name: string;
+        [key: string]: any;
+      }
+
+      interface RawProject {
+        id: string;
+        name?: string;
+        description?: string;
+        usage?: string;
+        tech_stack?: TechStackItem[];
+        app_url?: string;
+        colab_url?: string;
+        github_url?: string;
+        readme_url?: string;
+        screenshot_url?: string;
+        status?: string;
+        project_lead_id?: string;
+        project_lead?: ProjectLead;
+        created_at?: string;
+        updated_at?: string;
+        tags?: string[];
+        [key: string]: any;
+      }
+
+      const processedProjects: Project[] = (data as RawProject[]).map((project: RawProject): Project => {
         // Add default values for any missing fields
         return {
           id: project.id,
           name: project.name || 'Untitled Project',
           description: project.description || 'No description',
           usage: project.usage || '',
-          tech_stack: Array.isArray(project.tech_stack) ? project.tech_stack : [],
+          tech_stack: Array.isArray(project.tech_stack)
+            ? project.tech_stack.map((tech: any) => ({
+                name: tech.name || 'Unknown',
+                icon: tech.icon || '', // Provide a default icon if missing
+              }))
+            : [],
           app_url: project.app_url || '', 
           colab_url: project.colab_url || '',
           github_url: project.github_url || '',
           readme_url: project.readme_url || '',
           screenshot_url: project.screenshot_url || '',
-          status: project.status || 'ongoing',
+          status: (project.status as Project['status']) || 'ongoing',
           project_lead_id: project.project_lead_id || '',
           project_lead: project.project_lead || { name: 'Unknown User' },
           created_at: project.created_at || new Date().toISOString(),

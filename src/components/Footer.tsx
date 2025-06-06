@@ -1,9 +1,9 @@
-import React from 'react';
+import type { FC } from 'react';
 import { Github, Twitter, Linkedin, Mail, ExternalLink, ChevronUp, Heart } from 'lucide-react';
 import { AnimatedTooltip } from "../components/ui/animated-tooltip";
 import logo from "../components/assets/white_logo.png";
 
-const Footer: React.FC = () => {
+const Footer: FC = () => {
   const scrollToTop = () => {
     window.scrollTo({
       top: 0,
@@ -89,7 +89,7 @@ const Footer: React.FC = () => {
       id: 6,
       name: "Maitri Patel",
       designation: "AIML Intern",
-      image: "https://ik.imagekit.io/h8rjedcua/maitri.jpg?updatedAt=1749193883822",
+      image: "https://ik.imagekit.io/h8rjedcua/maitri.jpg?updatedAt=1749199030473",
     },
     {
       id: 7,
