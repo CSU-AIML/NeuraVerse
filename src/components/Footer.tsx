@@ -1,5 +1,6 @@
 import React from 'react';
 import { Github, Twitter, Linkedin, Mail, ExternalLink, ChevronUp, Heart } from 'lucide-react';
+import { AnimatedTooltip } from "../components/ui/animated-tooltip";
 import logo from "../components/assets/white_logo.png";
 
 const Footer: React.FC = () => {
@@ -52,6 +53,58 @@ const Footer: React.FC = () => {
     },
   ];
 
+  // Team members data for AnimatedTooltip
+  const teamMembers = [
+    {
+      id: 1,
+      name: "Dhruvil Patel",
+      designation: "Team Leader",
+      image: "https://ik.imagekit.io/qameuo51c/WhatsApp%20Image%202025-06-06%20at%2012.37.15%20PM.jpeg?updatedAt=1749197155111",
+    },
+    {
+      id: 2,
+      name: "Jay Kanavia",
+      designation: "Co-Team Leader",
+      image: "https://ik.imagekit.io/ogryyrmwm/me.jpg?updatedAt=1749193582749",
+    },
+    {
+      id: 3,
+      name: "Darshit Rana",
+      designation: "Senior ML Engineer",
+      image: "https://ik.imagekit.io/qameuo51c/cesar-rincon-XHVpWcr5grQ-unsplash.jpg?updatedAt=1749194435489",
+    },
+    {
+      id: 4,
+      name: "Tanvi Barot",
+      designation: "AIML Intern",
+      image: "https://ik.imagekit.io/y6hxoont9/IMG_8955.jpg?updatedAt=1749194171473",
+    },
+    {
+      id: 5,
+      name: "Khushi Patel",
+      designation: "AIML Intern",
+      image: "https://ik.imagekit.io/wlzyiugmj/2.jpg?updatedAt=1749194161412",
+    },
+    {
+      id: 6,
+      name: "Maitri Patel",
+      designation: "AIML Intern",
+      image: "https://ik.imagekit.io/h8rjedcua/maitri.jpg?updatedAt=1749193883822",
+    },
+    {
+      id: 7,
+      name: "Daksh Patel",
+      designation: "AIML Intern",
+      image: "https://ik.imagekit.io/prfumajy6/c56c0585-67e1-498e-acfd-0279075838a2.jpg?updatedAt=1749196700361",
+    },
+    {
+      id: 8,
+      name: "Dhruv Savani",
+      designation: "AIML Intern",
+      image: "https://ik.imagekit.io/prfumajy6/dhruv.jpg?updatedAt=1749193515108",
+    },
+  ];
+
   return (
     <footer className="w-full mt-auto py-12 px-4 sm:px-6 lg:px-8 relative z-10 overflow-hidden bg-gradient-to-b from-slate-900 to-slate-950">
       {/* Existing decorative elements remain the same */}
@@ -74,6 +127,19 @@ const Footer: React.FC = () => {
       </button>
       
       <div className="max-w-7xl mx-auto relative z-10">
+        {/* Team Section with AnimatedTooltip */}
+        <div className="text-center mb-12">
+          <h3 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-blue-200 to-purple-200 mb-4">
+            Meet Our Team
+          </h3>
+          <p className="text-gray-400 text-sm mb-8 max-w-2xl mx-auto">
+            The brilliant minds behind NeuraVerse, dedicated to pushing the boundaries of AI/ML innovation.
+          </p>
+          <div className="flex flex-row items-center justify-center mb-10 w-full">
+            <AnimatedTooltip items={teamMembers} />
+          </div>
+        </div>
+
         {/* Main footer content */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
           {/* Brand section */}
@@ -81,7 +147,7 @@ const Footer: React.FC = () => {
             <div className="flex items-center space-x-3 mb-4 group">
               <div className="relative h-10 w-10 overflow-hidden rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 p-1 shadow-inner shadow-white/10">
                 <img 
-                  src= {logo} 
+                  src={logo} 
                   alt="NeuraVerse Logo" 
                   className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-110"
                 />
