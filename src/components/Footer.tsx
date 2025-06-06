@@ -59,7 +59,7 @@ const Footer: FC = () => {
       id: 1,
       name: "Dhruvil Patel",
       designation: "Team Leader",
-      image: "https://ik.imagekit.io/qameuo51c/WhatsApp%20Image%202025-06-06%20at%2012.37.15%20PM.jpeg?updatedAt=1749197155111",
+      image: "https://ik.imagekit.io/qameuo51c/WhatsApp%20Image%202025-06-06%20at%2012.37.15%20PM.jpeg?updatedAt=1749207982523",
     },
     {
       id: 2,
