@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ExternalLink,
   Github,
@@ -511,7 +511,8 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                       </button>
                     )}
 
-                    {project.github_url && (
+                    {/* Admin-only GitHub button for mobile */}
+                    {isAdmin && project.github_url && (
                       <a
                         href={project.github_url}
                         target="_blank"
@@ -526,7 +527,8 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                       </a>
                     )}
 
-                    {project.readme_url && (
+                    {/* Admin-only documentation button for mobile */}
+                    {isAdmin && project.readme_url && (
                       <a
                         href={project.readme_url}
                         target="_blank"
@@ -539,6 +541,17 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                           <div className="text-xs text-gray-400">Project docs</div>
                         </div>
                       </a>
+                    )}
+
+                    {/* Show lock message when user is not admin and GitHub/docs exist */}
+                    {!isAdmin && (project.github_url || project.readme_url) && (
+                      <div className="w-full flex items-center gap-3 bg-gray-800/20 border border-gray-700/30 rounded-xl p-4 text-gray-400">
+                        <Lock className="w-5 h-5" />
+                        <div className="text-left">
+                          <div className="font-medium">Source Code & Documentation</div>
+                          <div className="text-xs text-gray-500">Admin access required</div>
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}
@@ -627,7 +640,8 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                       </button>
                     )}
 
-                    {project.github_url && (
+                    {/* Admin-only GitHub button for desktop */}
+                    {isAdmin && project.github_url && (
                       <a
                         href={project.github_url}
                         target="_blank"
@@ -640,7 +654,8 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                       </a>
                     )}
 
-                    {project.readme_url && (
+                    {/* Admin-only documentation button for desktop */}
+                    {isAdmin && project.readme_url && (
                       <a
                         href={project.readme_url}
                         target="_blank"
@@ -651,6 +666,14 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                         <BookOpen className="w-4 h-4" />
                         Documentation
                       </a>
+                    )}
+
+                    {/* Show lock indicator for non-admin users when source code/docs exist */}
+                    {!isAdmin && (project.github_url || project.readme_url) && (
+                      <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-800/30 border border-gray-700/30 text-gray-500 rounded-lg font-medium">
+                        <Lock className="w-4 h-4" />
+                        Source Code & Docs (Admin Only)
+                      </div>
                     )}
                   </div>
                 </div>
