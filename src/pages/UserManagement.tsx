@@ -21,7 +21,7 @@ import {
   Settings
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import userManagementService, { UserProfile } from '../services/UserManagementService';
+import userManagementService, { UserProfile } from '../services/userManagementService';
 
 // Enhanced interfaces
 interface SecurityAlert {
