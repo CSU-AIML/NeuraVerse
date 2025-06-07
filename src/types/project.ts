@@ -16,23 +16,20 @@ export interface ProjectLead {
 }
 
 export interface Project {
-  tags: boolean;
   id: string;
   name: string;
   description: string;
-  status: ProjectStatus;
-  tech_stack: ProjectTechStack[];
-  project_lead?: {
-    id?: string;
-    name?: string;
-    position?: string;
-    avatar?: string;
-  };
-  app_url?: string;
-  github_url?: string;
-  readme_url?: string;
-  screenshot_url?: string;
-  usage?: string;
-  created_at?: string;
-  updated_at?: string;
+  usage: string;
+  tech_stack: { name: string; icon?: string }[];
+  app_url: string;
+  colab_url: string;
+  github_url: string;
+  readme_url: string;
+  screenshot_url: string;
+  status: 'ongoing' | 'archived' | string;
+  project_lead_id: string;
+  project_lead: { name: string };
+  created_at: string;
+  updated_at: string;
+  tags: boolean;
 }

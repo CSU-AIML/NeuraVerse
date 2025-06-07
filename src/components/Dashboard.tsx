@@ -1,57 +1,74 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-// REMOVED: import { FlickeringGrid } from './magicui/flickering-grid';
-import { TypingAnimation } from './magicui/typing-animation';
 import { supabase } from '../lib/supabase';
 import type { Project } from '../types/project';
 import { useAuth } from '../contexts/AuthContext';
-import Footer from './Footer';
-import Loader from './loader';
-import ProjectFilters from './ProjectFilters';
-import NavButtons from './NavButtons';
-import ProjectsList from './ProjectList';
 import { useAlert } from '../components/AlertContext';
-import logo from "../components/assets/white_logo.png";
-import Waves from './ui/Waves'; // Add this import
+import { motion } from 'motion/react';
+
+// Import existing components
+import Footer from './Footer';
+import ProjectFilters from './ProjectFilters';
+import ProjectsList from './ProjectList';
+import AuthContainer from './auth/AuthContainer';
+
+// Import new dashboard components
+import DashboardHeader from './Dashboard/DashboardHeader';
+import DashboardBackground from './Dashboard/DashboardBackground';
+import EmptyState from './Dashboard/EmptyState';
+import LoadingOverlay from './Dashboard/LoadingOverlay';
+import FloatingActionButton from './Dashboard/FloatingActionButton';
+import DashboardLoader from './Dashboard/DashboardLoader';
+import HomePage from './Dashboard/HomePage';
+import TextPressurePage from './Dashboard/TextPressurePage';
 
 // Import CSS for animations
 import '../alert-animations.css';
-import { motion } from 'motion/react';
-import AuthContainer from './auth/AuthContainer';
 
 function Dashboard() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user, isAdmin, isLoading, signOut } = useAuth();
+  const [showHomePage, setShowHomePage] = useState(true);
+  const [showTextPressure, setShowTextPressure] = useState(true);
+  const { user, profile, isAdmin, loading: authLoading, signOut } = useAuth();
   
   // Use the alert context
   const { showAlert, clearAlerts } = useAlert();
 
+  // DEBUG CODE - Add this temporarily to see auth state
+  useEffect(() => {
+    if (user) {
+      console.log('=== AUTH DEBUG ===');
+      console.log('Firebase UID:', user.uid);
+      console.log('Email:', user.email);
+      console.log('Profile:', profile);
+      console.log('Is Admin:', isAdmin);
+      console.log('Profile Role:', profile?.role);
+      console.log('Profile Account Status:', profile?.account_status);
+      console.log('Auth Loading:', authLoading);
+      console.log('==================');
+    }
+  }, [user, profile, isAdmin, authLoading]);
+
   useEffect(() => {
     fetchProjects();
     
-    // Set up a subscription to listen for changes to the projects table
-    interface ProjectsSubscriptionPayload {
-      type: string;
-      table: string;
-      schema: string;
-      record: Record<string, any>;
-      old_record: Record<string, any> | null;
-      [key: string]: any;
-    }
-
-    // Type for the Supabase channel
-    const projectsSubscription: ReturnType<typeof supabase.channel> = supabase
+    // FIXED: Updated Supabase subscription syntax
+    const projectsSubscription = supabase
       .channel('public:projects')
       .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'projects' },
-      (payload: ProjectsSubscriptionPayload) => {
-        console.log('Change received!', payload);
-        fetchProjects();
-      }
+        'postgres_changes',
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'projects' 
+        },
+        (payload) => {
+          console.log('Change received!', payload);
+          fetchProjects();
+        }
       )
       .subscribe();
       
@@ -103,7 +120,6 @@ function Dashboard() {
       }
       
       // Process projects to ensure all required fields exist
-      // Process projects to ensure all required fields exist
       interface ProjectLead {
         name: string;
         [key: string]: any;
@@ -130,7 +146,7 @@ function Dashboard() {
         project_lead?: ProjectLead;
         created_at?: string;
         updated_at?: string;
-        tags?: string[];
+        tags?: string[] | boolean; // Handle both types temporarily
         [key: string]: any;
       }
 
@@ -157,7 +173,8 @@ function Dashboard() {
           project_lead: project.project_lead || { name: 'Unknown User' },
           created_at: project.created_at || new Date().toISOString(),
           updated_at: project.updated_at || new Date().toISOString(),
-          tags: project.tags || [] // Add this line to include the tags property
+          // FIXED: Handle tags properly - convert to boolean if it's an array
+          tags: Array.isArray(project.tags) ? project.tags.length > 0 : Boolean(project.tags)
         };
       });
       
@@ -338,6 +355,33 @@ function Dashboard() {
       );
     }
   };
+
+  const handleSignOut = async () => {
+    await signOut();
+    showAlert(
+      'Signed Out', 
+      'You have been successfully signed out', 
+      'info'
+    );
+    return Promise.resolve();
+  };
+
+  const handleCreateProject = () => {
+    navigate('/new');
+  };
+
+  const handleExploreProjects = () => {
+    setShowHomePage(false);
+    // Scroll to projects section
+    const projectsSection = document.getElementById('projects-section');
+    if (projectsSection) {
+      projectsSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleContinueFromTextPressure = () => {
+    setShowTextPressure(false);
+  };
   
   // Safe filtering to handle missing data
   const filteredProjects = projects.filter(project => {
@@ -357,18 +401,13 @@ function Dashboard() {
     return nameMatch || descMatch || techMatch;
   });
 
+  // Show initial loading screen
   if (loading) {
-    return (
-      <div className="fixed inset-0 z-[200] bg-gray-950/90 backdrop-blur-sm flex items-center justify-center">
-        <div className="animate-pulse">
-          <Loader />
-        </div>
-      </div>
-    );
+    return <DashboardLoader />;
   }
 
   // Show login screen if not authenticated
-  if (!isLoading && !user) {
+  if (!authLoading && !user) {
     return (
       <AuthContainer 
         onSuccess={() => {
@@ -382,184 +421,122 @@ function Dashboard() {
       />
     );
   }
+
+  // Show TextPressure page first
+  if (showTextPressure) {
+    return <TextPressurePage onContinue={handleContinueFromTextPressure} />;
+  }
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-slate-900 to-gray-900 relative overflow-hidden">
-      {/* Animated Waves Background */}
-      <div className="absolute inset-0 z-0">
-        <Waves
-          lineColor="rgba(255, 255, 255, 0.1)"
-          backgroundColor="transparent"
-          waveSpeedX={0.02}
-          waveSpeedY={0.01}
-          waveAmpX={40}
-          waveAmpY={20}
-          friction={0.9}
-          tension={0.01}
-          maxCursorMove={120}
-          xGap={12}
-          yGap={36}
-        />
-        
-        {/* Subtle overlay gradients to maintain the existing aesthetic */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(25,100,200,0.08),transparent_70%),radial-gradient(circle_at_80%_70%,rgba(100,50,255,0.05),transparent_50%)]"></div>
-        
-        {/* Animated subtle glow - very lightweight */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/3 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }}></div>
-        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-500/3 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '6s', animationDelay: '2s' }}></div>
-      </div>
+      {/* Animated Background */}
+      <DashboardBackground />
       
       {/* Main content with responsive container */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10 relative z-10">
-        {/* Enhanced Header with responsive design */}
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="relative flex flex-col md:flex-row md:items-center justify-between mb-6 sm:mb-8 p-4 sm:p-6 border border-white/20 bg-slate-900/40 backdrop-blur-2xl shadow-2xl rounded-xl overflow-hidden"
-        >
-          {/* Logo and title section */}
-          <div className="flex items-center justify-center md:justify-start mb-4 md:mb-0">
-            <div className="flex items-center space-x-3">
-              <motion.div
-                whileHover={{ scale: 1.05, rotate: 5 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                <img 
-                  src= {logo} 
-                  alt="AI/ML Projects Dashboard" 
-                  className="h-8 w-auto"
-                />
-              </motion.div>
-              <TypingAnimation
-                className="text-2xl sm:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-blue-100 to-white relative z-10"
-                duration={50}
-                as="h1"
-              >
-                NeuraVerse
-              </TypingAnimation>
-            </div>
-          </div>
-          
-          {/* Responsive navigation buttons */}
-          <div className="flex justify-center md:justify-end w-full md:w-auto">
-            <NavButtons 
-              navigate={navigate} 
-              isAdmin={isAdmin} 
-              user={user} 
-              signOut={async () => {
-                await signOut();
-                showAlert(
-                  'Signed Out', 
-                  'You have been successfully signed out', 
-                  'info'
-                );
-                return Promise.resolve();
-              }} 
-            />
-          </div>
-        </motion.div>
-  
-        {/* Project filters with improved styling */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.5 }}
-        >
-          <ProjectFilters 
-            searchQuery={searchQuery} 
-            setSearchQuery={setSearchQuery} 
-          />
-        </motion.div>
-  
-        {/* Project list with staggered animation */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.5 }}
-          className="mt-6 sm:mt-8"
-        >
-          <ProjectsList 
-            loading={loading}
-            searchQuery={searchQuery}
-            projects={projects}
-            filteredProjects={filteredProjects}
-            isAdmin={isAdmin}
-            navigate={navigate}
-            handleEdit={handleEdit}
-            handleDelete={handleDelete}
-            handleArchive={handleArchive}
-            handleUnarchive={handleUnarchive}
-          />
-        </motion.div>
-        
-        {/* Empty state with enhanced styling */}
-        {!loading && filteredProjects.length === 0 && (
+        {/* Enhanced Header */}
+        <DashboardHeader 
+          navigate={navigate}
+          isAdmin={isAdmin}
+          user={user}
+          signOut={handleSignOut}
+        />
+
+        {/* HomePage Section */}
+        {showHomePage && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.6, duration: 0.5 }}
-            className="flex flex-col items-center justify-center py-16 px-4 rounded-xl bg-slate-900/30 backdrop-blur-sm border border-slate-700/30 mt-8"
+            transition={{ duration: 0.8 }}
+            className="mb-16"
           >
-            <div className="p-6 rounded-full bg-slate-800/50 border border-slate-700/30 mb-4">
-              <svg className="w-12 h-12 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-medium text-white mb-2">No projects found</h3>
-            <p className="text-slate-400 text-center max-w-md mb-6">
-              {searchQuery ? 
-                `We couldn't find any projects matching "${searchQuery}". Try a different search term.` :
-                "You haven't created any projects yet. Get started by creating your first project."
-              }
-            </p>
-            
-            {isAdmin && !searchQuery && (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => navigate('/new')}
-                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg shadow-lg shadow-blue-900/30 flex items-center space-x-2 font-medium transition-all duration-300 hover:shadow-blue-900/50"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                <span>Create New Project</span>
-              </motion.button>
-            )}
+            <HomePage
+              isAdmin={isAdmin}
+              onCreateProject={handleCreateProject}
+              onExploreProjects={handleExploreProjects}
+            />
           </motion.div>
         )}
+
+        {/* Projects Section */}
+        <div id="projects-section" className={showHomePage ? 'pt-8' : ''}>
+          {/* Section Header */}
+          {showHomePage && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.6 }}
+              className="text-center mb-12"
+            >
+              <h2 className="text-3xl sm:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-blue-100 to-purple-100 mb-4">
+                Featured Projects
+              </h2>
+              <p className="text-slate-300 text-lg max-w-2xl mx-auto">
+                Discover our latest AI and machine learning innovations
+              </p>
+            </motion.div>
+          )}
+
+          {/* Project filters with improved styling */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: showHomePage ? 0.4 : 0.2, duration: 0.5 }}
+          >
+            <ProjectFilters 
+              searchQuery={searchQuery} 
+              setSearchQuery={setSearchQuery} 
+            />
+          </motion.div>
+
+          {/* Project list with staggered animation */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: showHomePage ? 0.6 : 0.4, duration: 0.5 }}
+            className="mt-6 sm:mt-8"
+          >
+            <ProjectsList 
+              loading={loading}
+              searchQuery={searchQuery}
+              projects={projects}
+              filteredProjects={filteredProjects}
+              isAdmin={isAdmin}
+              navigate={navigate}
+              handleEdit={handleEdit}
+              handleDelete={handleDelete}
+              handleArchive={handleArchive}
+              handleUnarchive={handleUnarchive}
+            />
+          </motion.div>
+          
+          {/* Empty state */}
+          {!loading && filteredProjects.length === 0 && (
+            <EmptyState 
+              searchQuery={searchQuery}
+              isAdmin={isAdmin}
+              onCreateProject={handleCreateProject}
+            />
+          )}
+        </div>
       </div>
       
-      {/* Enhanced footer with fixed position */}
+      {/* Enhanced footer */}
       <div className="mt-auto">
         <Footer />
       </div>
       
       {/* Floating action button for mobile/tablet */}
-      {isAdmin && (
-        <motion.button
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.8, duration: 0.3 }}
-          onClick={() => navigate('/new')}
-          className="fixed bottom-6 right-6 lg:hidden p-4 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-900/30 hover:shadow-blue-900/50 transition-all duration-300 z-20"
-        >
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-        </motion.button>
-      )}
+      <FloatingActionButton 
+        isVisible={isAdmin}
+        onClick={handleCreateProject}
+      />
       
       {/* Loading overlay */}
-      {loading && (
-        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="p-4 rounded-xl bg-slate-800/90 border border-slate-700/50 shadow-2xl flex flex-col items-center">
-            <div className="w-16 h-16 border-4 border-t-blue-500 border-r-transparent border-b-purple-500 border-l-transparent rounded-full animate-spin mb-4"></div>
-            <p className="text-white font-medium">Loading projects...</p>
-          </div>
-        </div>
-      )}
+      <LoadingOverlay 
+        isVisible={loading}
+        message="Loading projects..."
+      />
     </div>
   );
 }

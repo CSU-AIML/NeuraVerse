@@ -1,0 +1,786 @@
+-- Enhanced Database Schema for Enterprise User Management
+-- Run this in your Supabase SQL editor
+
+-- Enable necessary extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- Enhanced user profiles table
+CREATE TABLE IF NOT EXISTS user_profiles (
+  id BIGSERIAL PRIMARY KEY,
+  firebase_uid TEXT UNIQUE NOT NULL,
+  email TEXT NOT NULL,
+  display_name TEXT,
+  avatar_url TEXT,
+  role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin', 'guest')),
+  
+  -- Account status and security
+  account_status TEXT DEFAULT 'active' CHECK (account_status IN ('active', 'suspended', 'deleted', 'pending_verification')),
+  email_verified BOOLEAN DEFAULT false,
+  two_factor_enabled BOOLEAN DEFAULT false,
+  password_changed_at TIMESTAMP WITH TIME ZONE,
+  last_login TIMESTAMP WITH TIME ZONE,
+  last_ip INET,
+  login_count INTEGER DEFAULT 0,
+  failed_login_attempts INTEGER DEFAULT 0,
+  account_locked_until TIMESTAMP WITH TIME ZONE,
+  
+  -- Suspension management
+  suspension_reason TEXT,
+  suspension_end_date TIMESTAMP WITH TIME ZONE,
+  suspended_by BIGINT REFERENCES user_profiles(id),
+  
+  -- GDPR and data compliance
+  gdpr_consent BOOLEAN DEFAULT false,
+  gdpr_consent_date TIMESTAMP WITH TIME ZONE,
+  data_retention_date TIMESTAMP WITH TIME ZONE,
+  data_processing_consent BOOLEAN DEFAULT false,
+  marketing_consent BOOLEAN DEFAULT false,
+  
+  -- Audit fields
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_by BIGINT REFERENCES user_profiles(id),
+  updated_by BIGINT REFERENCES user_profiles(id),
+  
+  -- Soft delete support
+  deleted_at TIMESTAMP WITH TIME ZONE,
+  deleted_by BIGINT REFERENCES user_profiles(id),
+  deletion_reason TEXT
+);
+
+-- Audit logs table for compliance and security monitoring
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  action TEXT NOT NULL,
+  actor_id TEXT NOT NULL, -- Firebase UID of person performing action
+  target_user_id TEXT, -- Firebase UID of user being affected
+  target_resource_type TEXT, -- 'user', 'project', 'system', etc.
+  target_resource_id TEXT,
+  
+  -- Request context
+  ip_address INET,
+  user_agent TEXT,
+  session_id TEXT,
+  request_id TEXT,
+  
+  -- Action details
+  details JSONB DEFAULT '{}',
+  severity TEXT DEFAULT 'medium' CHECK (severity IN ('low', 'medium', 'high', 'critical')),
+  
+  -- Success/failure tracking
+  success BOOLEAN DEFAULT true,
+  error_message TEXT,
+  
+  -- Compliance
+  retention_date TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '7 years'),
+  
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- User sessions table for session management
+CREATE TABLE IF NOT EXISTS user_sessions (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+  firebase_uid TEXT NOT NULL,
+  session_token TEXT UNIQUE NOT NULL,
+  refresh_token TEXT,
+  
+  -- Session metadata
+  ip_address INET,
+  user_agent TEXT,
+  device_fingerprint TEXT,
+  
+  -- Session lifecycle
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  last_activity TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  revoked_at TIMESTAMP WITH TIME ZONE,
+  revoked_by UUID REFERENCES user_profiles(id),
+  revoke_reason TEXT
+);
+
+-- User preferences and settings
+CREATE TABLE IF NOT EXISTS user_preferences (
+  id BIGSERIAL PRIMARY KEY,
+  user_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+  
+  -- UI Preferences
+  theme TEXT DEFAULT 'dark' CHECK (theme IN ('light', 'dark', 'system')),
+  language TEXT DEFAULT 'en',
+  timezone TEXT DEFAULT 'UTC',
+  
+  -- Notification preferences
+  email_notifications BOOLEAN DEFAULT true,
+  push_notifications BOOLEAN DEFAULT true,
+  marketing_emails BOOLEAN DEFAULT false,
+  security_alerts BOOLEAN DEFAULT true,
+  
+  -- Privacy settings
+  profile_visibility TEXT DEFAULT 'private' CHECK (profile_visibility IN ('public', 'private', 'contacts')),
+  activity_tracking BOOLEAN DEFAULT true,
+  analytics_consent BOOLEAN DEFAULT false,
+  
+  -- Feature flags
+  beta_features BOOLEAN DEFAULT false,
+  experimental_ui BOOLEAN DEFAULT false,
+  
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Security events table for monitoring suspicious activity
+CREATE TABLE IF NOT EXISTS security_events (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id TEXT, -- Firebase UID
+  event_type TEXT NOT NULL CHECK (event_type IN (
+    'login_success', 'login_failed', 'logout',
+    'password_change', 'email_change', 'role_change',
+    'account_locked', 'account_suspended', 'account_deleted',
+    'suspicious_activity', 'data_export', 'permission_denied',
+    'token_refresh', 'session_expired', 'device_change'
+  )),
+  
+  -- Event context
+  ip_address INET,
+  user_agent TEXT,
+  location_country TEXT,
+  location_city TEXT,
+  
+  -- Risk assessment
+  risk_score INTEGER DEFAULT 0 CHECK (risk_score >= 0 AND risk_score <= 100),
+  threat_indicators JSONB DEFAULT '{}',
+  
+  -- Event details
+  details JSONB DEFAULT '{}',
+  success BOOLEAN DEFAULT true,
+  
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Data retention policies table
+CREATE TABLE IF NOT EXISTS data_retention_policies (
+  id BIGSERIAL PRIMARY KEY,
+  data_type TEXT NOT NULL UNIQUE,
+  retention_period INTERVAL NOT NULL,
+  deletion_method TEXT DEFAULT 'soft_delete' CHECK (deletion_method IN ('soft_delete', 'hard_delete', 'anonymize')),
+  legal_basis TEXT,
+  
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Insert default data retention policies
+INSERT INTO data_retention_policies (data_type, retention_period, deletion_method, legal_basis) VALUES
+  ('user_profiles', '7 years', 'soft_delete', 'Legal compliance and business records'),
+  ('audit_logs', '7 years', 'hard_delete', 'Security monitoring and compliance'),
+  ('security_events', '2 years', 'anonymize', 'Security analysis and threat detection'),
+  ('user_sessions', '90 days', 'hard_delete', 'Session management and security'),
+  ('user_preferences', '1 year', 'soft_delete', 'User experience optimization')
+ON CONFLICT (data_type) DO NOTHING;
+
+-- Permissions and roles system
+CREATE TABLE IF NOT EXISTS permissions (
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT UNIQUE NOT NULL,
+  description TEXT,
+  category TEXT DEFAULT 'general',
+  is_system_permission BOOLEAN DEFAULT false,
+  
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- User permissions junction table
+CREATE TABLE IF NOT EXISTS user_permissions (
+  id BIGSERIAL PRIMARY KEY,
+  user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
+  permission_id BIGINT REFERENCES permissions(id) ON DELETE CASCADE,
+  
+  granted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  granted_by UUID REFERENCES user_profiles(id),
+  expires_at TIMESTAMP WITH TIME ZONE,
+  
+  UNIQUE(user_id, permission_id)
+);
+
+-- Insert default permissions
+INSERT INTO permissions (name, description, category, is_system_permission) VALUES
+  ('user.read', 'View user profiles', 'user_management', true),
+  ('user.create', 'Create new users', 'user_management', true),
+  ('user.update', 'Update user profiles', 'user_management', true),
+  ('user.delete', 'Delete users', 'user_management', true),
+  ('user.promote', 'Promote users to admin', 'user_management', true),
+  ('user.suspend', 'Suspend user accounts', 'user_management', true),
+  ('project.read', 'View projects', 'project_management', true),
+  ('project.create', 'Create new projects', 'project_management', true),
+  ('project.update', 'Update projects', 'project_management', true),
+  ('project.delete', 'Delete projects', 'project_management', true),
+  ('audit.read', 'View audit logs', 'security', true),
+  ('system.admin', 'Full system administration', 'system', true)
+ON CONFLICT (name) DO NOTHING;
+
+-- Enhanced projects table with proper foreign keys
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES user_profiles(id);
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS updated_by UUID REFERENCES user_profiles(id);
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_status TEXT DEFAULT 'active' CHECK (project_status IN ('active', 'archived', 'deleted'));
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_user_profiles_firebase_uid ON user_profiles(firebase_uid);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_email ON user_profiles(email);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_status ON user_profiles(status);  -- Corrected from account_status to status
+CREATE INDEX IF NOT EXISTS idx_user_profiles_role ON user_profiles(role);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_created_at ON user_profiles(created_at);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_last_sign_in ON user_profiles(last_sign_in);  -- Corrected from last_login to last_sign_in
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON audit_logs(actor_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_target ON audit_logs(target_user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_severity ON audit_logs(severity);
+
+CREATE INDEX IF NOT EXISTS idx_security_events_user ON security_events(user_id);
+CREATE INDEX IF NOT EXISTS idx_security_events_type ON security_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_security_events_created_at ON security_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_security_events_risk_score ON security_events(risk_score);
+
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions(session_token);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_expires_at ON user_sessions(expires_at);
+
+-- Row Level Security (RLS) Policies
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE security_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
+
+-- User profiles policies
+CREATE POLICY "Users can view own profile" ON user_profiles
+  FOR SELECT USING ((firebase_uid = (select auth.uid()::text)));
+
+CREATE POLICY "Users can update own profile" ON user_profiles
+  FOR UPDATE USING ((firebase_uid = (select auth.uid()::text)));
+
+CREATE POLICY "Admins can view all profiles" ON user_profiles
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM user_profiles 
+      WHERE firebase_uid = (select auth.uid()::text) 
+      AND role = 'admin' 
+      AND status = 'active'  -- Changed from account_status to status
+    )
+  );
+
+-- Audit logs policies (admin only)
+CREATE POLICY "Admins can view audit logs" ON audit_logs
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM user_profiles 
+      WHERE firebase_uid = (SELECT auth.uid()::text) 
+      AND role = 'admin' 
+      AND status = 'active'  -- Changed from account_status to status
+    )
+  );
+
+CREATE POLICY "System can insert audit logs" ON audit_logs
+  FOR INSERT WITH CHECK (true);
+
+-- Security events policies
+CREATE POLICY "Users can view own security events" ON security_events
+  FOR SELECT USING ((select auth.uid())::text = user_id);
+
+CREATE POLICY "Admins can view all security events" ON security_events
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM user_profiles 
+      WHERE firebase_uid = (select auth.uid())::text 
+      AND role = 'admin' 
+      AND status = 'active'
+    )
+  );
+
+-- User sessions policies
+CREATE POLICY "Users can view own sessions" ON user_sessions
+  FOR SELECT USING (firebase_uid = (SELECT auth.uid()::text));
+
+CREATE POLICY "Users can update own sessions" ON user_sessions
+  FOR UPDATE USING (firebase_uid = (SELECT auth.uid()::text));
+
+-- User preferences policies
+CREATE POLICY "Users can manage own preferences" ON user_preferences
+  FOR ALL USING (
+    user_id IN (
+      SELECT id FROM user_profiles 
+      WHERE firebase_uid = (SELECT auth.uid()::text)
+    )
+  );
+
+-- Stored procedures for common operations
+CREATE OR REPLACE FUNCTION check_user_permission(
+  user_firebase_uid TEXT,
+  permission_name TEXT
+)
+RETURNS BOOLEAN AS $$
+DECLARE
+  user_role TEXT;
+  has_permission BOOLEAN := FALSE;
+BEGIN
+  -- Get user role
+  SELECT role INTO user_role
+  FROM user_profiles
+  WHERE firebase_uid = user_firebase_uid
+  AND account_status = 'active';
+  
+  -- Admins have all permissions
+  IF user_role = 'admin' THEN
+    RETURN TRUE;
+  END IF;
+  
+  -- Check specific permission
+  SELECT EXISTS (
+    SELECT 1
+    FROM user_permissions up
+    JOIN permissions p ON up.permission_id = p.id
+    JOIN user_profiles u ON up.user_id = u.id
+    WHERE u.firebase_uid = user_firebase_uid
+    AND p.name = permission_name
+    AND (up.expires_at IS NULL OR up.expires_at > NOW())
+  ) INTO has_permission;
+  
+  RETURN has_permission;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to log user activity
+CREATE OR REPLACE FUNCTION log_user_activity()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'UPDATE' THEN
+    -- Log significant profile changes
+    IF OLD.role != NEW.role OR OLD.account_status != NEW.account_status THEN
+      INSERT INTO audit_logs (
+        action,
+        actor_id,
+        target_user_id,
+        details
+      ) VALUES (
+        'user_profile_updated',
+        auth.uid(),
+        NEW.firebase_uid,
+        jsonb_build_object(
+          'old_role', OLD.role,
+          'new_role', NEW.role,
+          'old_status', OLD.account_status,
+          'new_status', NEW.account_status,
+          'updated_fields', array(
+            SELECT key FROM jsonb_each_text(to_jsonb(NEW)) 
+            WHERE to_jsonb(NEW) -> key != to_jsonb(OLD) -> key
+          )
+        )
+      );
+    END IF;
+  END IF;
+  
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger for user activity logging
+DROP TRIGGER IF EXISTS trigger_log_user_activity ON user_profiles;
+CREATE TRIGGER trigger_log_user_activity
+  AFTER UPDATE ON user_profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION log_user_activity();
+
+-- Function to clean up expired sessions
+CREATE OR REPLACE FUNCTION cleanup_expired_sessions()
+RETURNS INTEGER AS $$
+DECLARE
+  deleted_count INTEGER;
+BEGIN
+  DELETE FROM user_sessions 
+  WHERE expires_at < NOW() 
+  OR revoked_at IS NOT NULL;
+  
+  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  RETURN deleted_count;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function for GDPR data export
+CREATE OR REPLACE FUNCTION export_user_data(user_firebase_uid TEXT)
+RETURNS JSONB AS $$
+DECLARE
+  user_data JSONB;
+  profile_data JSONB;
+  preferences_data JSONB;
+  audit_data JSONB;
+BEGIN
+  -- Get user profile
+  SELECT to_jsonb(up.*) INTO profile_data
+  FROM user_profiles up
+  WHERE up.firebase_uid = user_firebase_uid;
+  
+  -- Get user preferences
+  SELECT to_jsonb(pref.*) INTO preferences_data
+  FROM user_preferences pref
+  JOIN user_profiles up ON pref.user_id = up.id
+  WHERE up.firebase_uid = user_firebase_uid;
+  
+  -- Get recent audit logs (last 100 entries)
+  SELECT jsonb_agg(al.*) INTO audit_data
+  FROM (
+    SELECT * FROM audit_logs 
+    WHERE target_user_id = user_firebase_uid 
+    ORDER BY created_at DESC 
+    LIMIT 100
+  ) al;
+  
+  -- Combine all data
+  user_data := jsonb_build_object(
+    'export_date', NOW(),
+    'user_profile', COALESCE(profile_data, '{}'::jsonb),
+    'preferences', COALESCE(preferences_data, '{}'::jsonb),
+    'audit_history', COALESCE(audit_data, '[]'::jsonb),
+    'data_controller', 'NeuraVerse Platform',
+    'export_format_version', '1.0'
+  );
+  
+  RETURN user_data;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Create a view for admin dashboard statistics
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'user_profiles' AND table_schema = 'public') THEN
+        CREATE TABLE public.user_profiles (
+            id uuid NOT NULL,
+            display_name text NULL,
+            avatar_url text NULL,
+            bio text NULL,
+            website text NULL,
+            role text NULL DEFAULT 'user'::text,
+            status text NULL DEFAULT 'active'::text,
+            last_sign_in timestamp with time zone NULL,
+            created_at timestamp with time zone NOT NULL DEFAULT now(),
+            updated_at timestamp with time zone NOT NULL DEFAULT now(),
+            firebase_uid text NULL,
+            provider text NULL,
+            email text NULL,
+            CONSTRAINT new_user_profiles_pkey PRIMARY KEY (id),
+            CONSTRAINT user_profiles_firebase_uid_key UNIQUE (firebase_uid)
+        );
+    END IF;
+END $$;
+
+-- Comments for documentation
+COMMENT ON TABLE user_profiles IS 'Enhanced user profiles with security and compliance features';
+COMMENT ON TABLE audit_logs IS 'Comprehensive audit trail for compliance and security monitoring';
+COMMENT ON TABLE security_events IS 'Security event logging for threat detection and analysis';
+COMMENT ON TABLE user_sessions IS 'Active user session management with security tracking';
+COMMENT ON TABLE data_retention_policies IS 'GDPR and compliance data retention configuration';
+COMMENT ON FUNCTION check_user_permission IS 'Role-based permission checking function';
+COMMENT ON FUNCTION export_user_data IS 'GDPR compliant user data export function';
+
+
+
+
+
+
+----------------------------------------------------UPDATED-----------------------------------------
+-- STEP 1: Fix Schema Inconsistencies and Drop Problematic Policies
+-- Run this in your Supabase SQL editor
+
+-- First, drop existing problematic policies
+DROP POLICY IF EXISTS "Users can view own profile" ON user_profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON user_profiles;
+DROP POLICY IF EXISTS "Admins can view all profiles" ON user_profiles;
+DROP POLICY IF EXISTS "Admins can view audit logs" ON audit_logs;
+DROP POLICY IF EXISTS "System can insert audit logs" ON audit_logs;
+DROP POLICY IF EXISTS "Users can view own security events" ON security_events;
+DROP POLICY IF EXISTS "Admins can view all security events" ON security_events;
+DROP POLICY IF EXISTS "Users can view own sessions" ON user_sessions;
+DROP POLICY IF EXISTS "Users can update own sessions" ON user_sessions;
+DROP POLICY IF EXISTS "Users can manage own preferences" ON user_preferences;
+
+-- Fix the inconsistent field references in the existing table
+-- The schema defines 'account_status' but indexes reference 'status'
+-- Let's standardize on 'account_status' throughout
+
+-- Drop problematic indexes that reference wrong field names
+DROP INDEX IF EXISTS idx_user_profiles_status;
+DROP INDEX IF EXISTS idx_user_profiles_last_sign_in;
+
+-- Recreate correct indexes
+CREATE INDEX IF NOT EXISTS idx_user_profiles_account_status ON user_profiles(account_status);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_last_login ON user_profiles(last_login);
+
+-- STEP 2: Ensure table compatibility and add missing columns
+-- Make sure the user_profiles table has all required fields
+
+DO $$
+BEGIN
+    -- Add firebase_uid if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'user_profiles' AND column_name = 'firebase_uid'
+    ) THEN
+        ALTER TABLE user_profiles ADD COLUMN firebase_uid TEXT UNIQUE;
+    END IF;
+
+    -- Add email if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'user_profiles' AND column_name = 'email'
+    ) THEN
+        ALTER TABLE user_profiles ADD COLUMN email TEXT;
+    END IF;
+
+    -- Add account_status if it doesn't exist (but status does)
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'user_profiles' AND column_name = 'account_status'
+    ) AND EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'user_profiles' AND column_name = 'status'
+    ) THEN
+        -- Rename status to account_status for consistency
+        ALTER TABLE user_profiles RENAME COLUMN status TO account_status;
+    END IF;
+
+    -- Add last_login if it doesn't exist (but last_sign_in does)
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'user_profiles' AND column_name = 'last_login'
+    ) AND EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'user_profiles' AND column_name = 'last_sign_in'
+    ) THEN
+        -- Rename last_sign_in to last_login for consistency
+        ALTER TABLE user_profiles RENAME COLUMN last_sign_in TO last_login;
+    END IF;
+END $$;
+
+-- STEP 3: Create proper RLS policies with correct field names
+
+-- Temporarily disable RLS to fix policies
+ALTER TABLE user_profiles DISABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_logs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE security_events DISABLE ROW LEVEL SECURITY;
+ALTER TABLE user_sessions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE user_preferences DISABLE ROW LEVEL SECURITY;
+
+-- Re-enable RLS
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE security_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
+
+-- Create new, working RLS policies
+
+-- User profiles policies
+CREATE POLICY "Users can view own profile" ON user_profiles
+  FOR SELECT 
+  TO authenticated
+  USING (firebase_uid = auth.uid()::text);
+
+CREATE POLICY "Users can update own profile" ON user_profiles
+  FOR UPDATE 
+  TO authenticated
+  USING (firebase_uid = auth.uid()::text);
+
+CREATE POLICY "Admins can view all profiles" ON user_profiles
+  FOR SELECT 
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM user_profiles up
+      WHERE up.firebase_uid = auth.uid()::text 
+      AND up.role = 'admin' 
+      AND up.account_status = 'active'
+    )
+  );
+
+CREATE POLICY "Admins can update all profiles" ON user_profiles
+  FOR UPDATE 
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM user_profiles up
+      WHERE up.firebase_uid = auth.uid()::text 
+      AND up.role = 'admin' 
+      AND up.account_status = 'active'
+    )
+  );
+
+CREATE POLICY "Admins can insert profiles" ON user_profiles
+  FOR INSERT 
+  TO authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM user_profiles up
+      WHERE up.firebase_uid = auth.uid()::text 
+      AND up.role = 'admin' 
+      AND up.account_status = 'active'
+    )
+  );
+
+-- Audit logs policies (admin and system access)
+CREATE POLICY "Admins can view audit logs" ON audit_logs
+  FOR SELECT 
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM user_profiles up
+      WHERE up.firebase_uid = auth.uid()::text 
+      AND up.role = 'admin' 
+      AND up.account_status = 'active'
+    )
+  );
+
+CREATE POLICY "System can insert audit logs" ON audit_logs
+  FOR INSERT 
+  TO authenticated
+  WITH CHECK (true);
+
+-- Security events policies
+CREATE POLICY "Users can view own security events" ON security_events
+  FOR SELECT 
+  TO authenticated
+  USING (user_id = auth.uid()::text);
+
+CREATE POLICY "Admins can view all security events" ON security_events
+  FOR SELECT 
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM user_profiles up
+      WHERE up.firebase_uid = auth.uid()::text 
+      AND up.role = 'admin' 
+      AND up.account_status = 'active'
+    )
+  );
+
+CREATE POLICY "System can insert security events" ON security_events
+  FOR INSERT 
+  TO authenticated
+  WITH CHECK (true);
+
+-- User sessions policies
+CREATE POLICY "Users can view own sessions" ON user_sessions
+  FOR SELECT 
+  TO authenticated
+  USING (firebase_uid = auth.uid()::text);
+
+CREATE POLICY "Users can update own sessions" ON user_sessions
+  FOR UPDATE 
+  TO authenticated
+  USING (firebase_uid = auth.uid()::text);
+
+CREATE POLICY "System can manage sessions" ON user_sessions
+  FOR ALL 
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+-- User preferences policies
+CREATE POLICY "Users can manage own preferences" ON user_preferences
+  FOR ALL 
+  TO authenticated
+  USING (
+    user_id IN (
+      SELECT id FROM user_profiles 
+      WHERE firebase_uid = auth.uid()::text
+    )
+  )
+  WITH CHECK (
+    user_id IN (
+      SELECT id FROM user_profiles 
+      WHERE firebase_uid = auth.uid()::text
+    )
+  );
+
+-- STEP 4: Update the function with correct field names
+CREATE OR REPLACE FUNCTION check_user_permission(
+  user_firebase_uid TEXT,
+  permission_name TEXT
+)
+RETURNS BOOLEAN AS $$
+DECLARE
+  user_role TEXT;
+  has_permission BOOLEAN := FALSE;
+BEGIN
+  -- Get user role (use correct field name)
+  SELECT role INTO user_role
+  FROM user_profiles
+  WHERE firebase_uid = user_firebase_uid
+  AND account_status = 'active';
+  
+  -- Admins have all permissions
+  IF user_role = 'admin' THEN
+    RETURN TRUE;
+  END IF;
+  
+  -- Check specific permission
+  SELECT EXISTS (
+    SELECT 1
+    FROM user_permissions up
+    JOIN permissions p ON up.permission_id = p.id
+    JOIN user_profiles u ON up.user_id = u.id
+    WHERE u.firebase_uid = user_firebase_uid
+    AND p.name = permission_name
+    AND (up.expires_at IS NULL OR up.expires_at > NOW())
+  ) INTO has_permission;
+  
+  RETURN has_permission;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- STEP 5: Create a temporary admin function to bypass RLS for setup
+CREATE OR REPLACE FUNCTION create_admin_user(
+  admin_firebase_uid TEXT,
+  admin_email TEXT,
+  admin_display_name TEXT DEFAULT NULL
+)
+RETURNS VOID AS $$
+BEGIN
+  -- Insert or update admin user bypassing RLS
+  INSERT INTO user_profiles (
+    firebase_uid,
+    email,
+    display_name,
+    role,
+    account_status,
+    email_verified,
+    created_at,
+    updated_at
+  ) VALUES (
+    admin_firebase_uid,
+    admin_email,
+    COALESCE(admin_display_name, admin_email),
+    'admin',
+    'active',
+    true,
+    NOW(),
+    NOW()
+  )
+  ON CONFLICT (firebase_uid) 
+  DO UPDATE SET
+    role = 'admin',
+    account_status = 'active',
+    email_verified = true,
+    updated_at = NOW();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- STEP 6: Grant necessary permissions
+GRANT USAGE ON SCHEMA public TO authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+
+-- Add some helpful comments
+COMMENT ON FUNCTION create_admin_user IS 'Temporary function to create admin users bypassing RLS - remove after setup';
+COMMENT ON FUNCTION check_user_permission IS 'Updated permission checking function with correct field names';
