@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Project } from '../types/project';
@@ -22,6 +22,10 @@ import DashboardLoader from './Dashboard/DashboardLoader';
 import HomePage from './Dashboard/HomePage';
 import TextPressurePage from './Dashboard/TextPressurePage';
 
+// Import enhanced filtering utilities
+import { applyProjectFilters, getDefaultFilterState } from '../utils/projectFilters';
+import type { FilterState } from '../utils/projectFilters';
+
 // Import CSS for animations
 import '../alert-animations.css';
 
@@ -31,7 +35,22 @@ function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [showHomePage, setShowHomePage] = useState(true);
-  const [showTextPressure, setShowTextPressure] = useState(true);
+  
+  // Check if user has seen the TextPressure page before
+  const [showTextPressure, setShowTextPressure] = useState(() => {
+    // Check sessionStorage to see if user has already seen the welcome page
+    try {
+      const hasSeenWelcome = sessionStorage.getItem('neuraverse_welcome_seen');
+      return !hasSeenWelcome; // Show only if they haven't seen it
+    } catch (error) {
+      // Fallback if sessionStorage is not available
+      return true;
+    }
+  });
+  
+  // Enhanced filtering state
+  const [filterState, setFilterState] = useState<FilterState>(getDefaultFilterState());
+  
   const { user, profile, isAdmin, loading: authLoading, signOut } = useAuth();
   
   // Use the alert context
@@ -107,6 +126,22 @@ function Dashboard() {
       
       console.log('Raw project data:', data);
       
+      // *** DEBUG: Check image data in raw response ***
+      if (data && data.length > 0) {
+        const projectsWithImages = data.filter(p => p.image_path || p.image_url);
+        console.log('🖼️ DEBUG - Projects with images found:', {
+          total_projects: data.length,
+          projects_with_image_path: data.filter(p => p.image_path).length,
+          projects_with_image_url: data.filter(p => p.image_url).length,
+          sample_image_data: data.slice(0, 3).map(p => ({
+            id: p.id,
+            name: p.name,
+            image_path: p.image_path,
+            image_url: p.image_url
+          }))
+        });
+      }
+      
       // Handle case where data might be null or undefined
       if (!data) {
         console.log('No projects found');
@@ -141,6 +176,8 @@ function Dashboard() {
         github_url?: string;
         readme_url?: string;
         screenshot_url?: string;
+        image_path?: string;        // *** ADD THIS ***
+        image_url?: string;         // *** ADD THIS ***
         status?: string;
         project_lead_id?: string;
         project_lead?: ProjectLead;
@@ -168,6 +205,8 @@ function Dashboard() {
           github_url: project.github_url || '',
           readme_url: project.readme_url || '',
           screenshot_url: project.screenshot_url || '',
+          image_path: project.image_path || undefined,     // *** ADD THIS ***
+          image_url: project.image_url || undefined,       // *** ADD THIS ***
           status: (project.status as Project['status']) || 'ongoing',
           project_lead_id: project.project_lead_id || '',
           project_lead: project.project_lead || { name: 'Unknown User' },
@@ -179,11 +218,24 @@ function Dashboard() {
       });
       
       console.log('Processed projects:', processedProjects);
+      
+      // *** DEBUG: Check processed image data ***
+      const processedWithImages = processedProjects.filter(p => p.image_path || p.image_url);
+      console.log('🖼️ DEBUG - Processed projects with images:', {
+        count: processedWithImages.length,
+        examples: processedWithImages.slice(0, 2).map(p => ({
+          id: p.id,
+          name: p.name,
+          image_path: p.image_path,
+          image_url: p.image_url
+        }))
+      });
+      
       setProjects(processedProjects);
       
       // Show success alert
       showAlert(
-        'Success', 
+        'Success!', 
         `Loaded ${processedProjects.length} projects`, 
         'success',
         { duration: 2000 }
@@ -200,6 +252,18 @@ function Dashboard() {
       // Clear the loading alert
       clearAlerts();
     }
+  };
+
+  // Enhanced filtering with memoization
+  const filteredProjects = useMemo(() => {
+    const combinedFilters = { ...filterState, searchQuery };
+    return applyProjectFilters(projects, combinedFilters);
+  }, [projects, filterState, searchQuery]);
+
+  // Handle filter changes
+  const handleFiltersChange = (newFilters: FilterState) => {
+    setFilterState(newFilters);
+    setSearchQuery(newFilters.searchQuery);
   };
 
   const handleEdit = (id: string) => {
@@ -380,26 +444,14 @@ function Dashboard() {
   };
 
   const handleContinueFromTextPressure = () => {
+    // Mark that user has seen the welcome page
+    try {
+      sessionStorage.setItem('neuraverse_welcome_seen', 'true');
+    } catch (error) {
+      console.log('SessionStorage not available:', error);
+    }
     setShowTextPressure(false);
   };
-  
-  // Safe filtering to handle missing data
-  const filteredProjects = projects.filter(project => {
-    if (!searchQuery.trim()) return true;
-    
-    const query = searchQuery.toLowerCase();
-    const nameMatch = project.name?.toLowerCase().includes(query) || false;
-    const descMatch = project.description?.toLowerCase().includes(query) || false;
-    let techMatch = false;
-    
-    if (Array.isArray(project.tech_stack)) {
-      techMatch = project.tech_stack.some(tech => 
-        typeof tech.name === 'string' && tech.name.toLowerCase().includes(query)
-      );
-    }
-    
-    return nameMatch || descMatch || techMatch;
-  });
 
   // Show initial loading screen
   if (loading) {
@@ -422,7 +474,7 @@ function Dashboard() {
     );
   }
 
-  // Show TextPressure page first
+  // Show TextPressure page only for first-time visitors
   if (showTextPressure) {
     return <TextPressurePage onContinue={handleContinueFromTextPressure} />;
   }
@@ -477,7 +529,7 @@ function Dashboard() {
             </motion.div>
           )}
 
-          {/* Project filters with improved styling */}
+          {/* Enhanced Project filters */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -485,11 +537,14 @@ function Dashboard() {
           >
             <ProjectFilters 
               searchQuery={searchQuery} 
-              setSearchQuery={setSearchQuery} 
+              setSearchQuery={setSearchQuery}
+              projects={projects}
+              onFiltersChange={handleFiltersChange}
+              activeFilters={{ ...filterState, searchQuery }}
             />
           </motion.div>
 
-          {/* Project list with staggered animation */}
+          {/* Enhanced Project list with staggered animation */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -527,10 +582,7 @@ function Dashboard() {
       </div>
       
       {/* Floating action button for mobile/tablet */}
-      <FloatingActionButton 
-        isVisible={isAdmin}
-        onClick={handleCreateProject}
-      />
+      
       
       {/* Loading overlay */}
       <LoadingOverlay 

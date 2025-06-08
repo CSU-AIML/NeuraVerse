@@ -14,6 +14,8 @@ import {
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, setPersistence, browserSessionPersistence, browserLocalPersistence } from 'firebase/auth';
 import { supabase } from '../lib/supabase';
 import { UserProfile } from '../services/userManagementService';
+import { setSupabaseAuth } from '../lib/supabaseAuth';
+
 
 interface AuthContextType {
   user: FirebaseUser | null;
@@ -76,6 +78,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.warn('Failed to set auth persistence:', error);
     }
   }, []);
+
+  
 
   /**
    * Get auth provider from Firebase user
@@ -192,6 +196,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Set user first
       setUser(firebaseUser);
+      
+      // IMPORTANT: Set Supabase auth context
+      const authSet = await setSupabaseAuth(firebaseUser);
+      if (!authSet) {
+        console.warn('Failed to set Supabase auth context');
+      }
       
       // Sync with Supabase
       const userProfile = await syncUserProfile(firebaseUser);
@@ -500,6 +510,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('Security logging not available');
         }
       }
+
+      // Clear Supabase auth context
+      await setSupabaseAuth(null);
 
       // Clear local storage
       localStorage.removeItem('remembered_email');

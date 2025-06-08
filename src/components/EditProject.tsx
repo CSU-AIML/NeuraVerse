@@ -5,7 +5,8 @@ import { supabase } from '../lib/supabase';
 import type { ProjectTechStack } from '../types/project';
 import { Project, ProjectStatus } from '../pages/NewProject';
 import { useAlert } from '../components/AlertContext';
-import { useAuth } from '../contexts/AuthContext'; // Use AuthContext instead
+import { useAuth } from '../contexts/AuthContext';
+import { ImageUpload } from '../components/ImageUpload';
 import Loader from './loader';
 
 // Import CSS for animations (same as in NewProject)
@@ -13,13 +14,15 @@ import '../alert-animations.css';
 
 export function EditProject() {
   const navigate = useNavigate();
-  const { id } = useParams(); // Get project ID from URL params
+  const { id } = useParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [techStack, setTechStack] = useState<ProjectTechStack[]>([]);
   const [newTech, setNewTech] = useState('');
   const [projectLeadName, setProjectLeadName] = useState('');
   const [projectLeadPosition, setProjectLeadPosition] = useState('');
+  const [imagePath, setImagePath] = useState<string | null>(null);
+  const [projectName, setProjectName] = useState('');
   
   // Form data state
   const [project, setProject] = useState<Project | null>(null);
@@ -27,8 +30,21 @@ export function EditProject() {
   // Use alert context
   const { showAlert, clearAlerts } = useAlert();
   
-  // FIXED: Use AuthContext instead of manual Supabase auth checking
-  const { authenticated, isAdmin, user, isLoading: authLoading } = useAuth();
+  // Use AuthContext
+  const { isAuthenticated, isAdmin, user, loading: authLoading } = useAuth();
+
+  // Handle image upload
+  const handleImageUpload = (uploadedImagePath: string | null) => {
+    setImagePath(uploadedImagePath);
+    if (uploadedImagePath) {
+      showAlert(
+        'Image Updated',
+        'Project image updated successfully',
+        'success',
+        { duration: 2000 }
+      );
+    }
+  };
 
   // Fetch project data
   const fetchProject = async () => {
@@ -91,6 +107,9 @@ export function EditProject() {
         );
         
         // Set form values from project data
+        setProjectName(data.name || '');
+        setImagePath(data.image_path || null);
+        
         if (data.tech_stack && Array.isArray(data.tech_stack)) {
           console.log('Setting tech stack:', data.tech_stack);
           setTechStack(data.tech_stack);
@@ -134,42 +153,56 @@ export function EditProject() {
     }
   };
 
-  // FIXED: Wait for auth to load, then fetch project
+  // FIXED: Improved auth state handling with better timing
   useEffect(() => {
     console.log('=== EDIT PROJECT AUTH CHECK ===');
     console.log('Auth loading:', authLoading);
-    console.log('Authenticated:', authenticated);
+    console.log('Authenticated:', isAuthenticated);
     console.log('Is admin:', isAdmin);
     console.log('User:', user);
+    console.log('Project ID:', id);
     
-    if (!authLoading) {
-      if (authenticated && isAdmin) {
-        console.log('✅ Auth confirmed, fetching project');
-        fetchProject();
-      } else if (authenticated && !isAdmin) {
-        console.log('❌ User authenticated but not admin');
-        showAlert(
-          'Access Denied',
-          'You need admin privileges to edit projects',
-          'error'
-        );
-        setTimeout(() => navigate('/'), 2000);
-      } else {
-        console.log('❌ User not authenticated');
-        showAlert(
-          'Authentication Required',
-          'Please sign in to continue',
-          'error'
-        );
-        setTimeout(() => navigate('/signin'), 2000);
-      }
+    // Wait for auth to fully load before making decisions
+    if (authLoading) {
+      console.log('⏳ Auth still loading, waiting...');
+      return;
     }
-  }, [authLoading, authenticated, isAdmin, id]);
 
+    // Auth is loaded, now check the state
+    if (!isAuthenticated) {
+      console.log('❌ User not authenticated');
+      showAlert(
+        'Authentication Required',
+        'Please sign in to continue',
+        'error'
+      );
+      setTimeout(() => navigate('/signin'), 2000);
+      return;
+    }
+
+    if (!isAdmin) {
+      console.log('❌ User authenticated but not admin');
+      showAlert(
+        'Access Denied',
+        'You need admin privileges to edit projects',
+        'error'
+      );
+      setTimeout(() => navigate('/'), 2000);
+      return;
+    }
+
+    // All checks passed, fetch project
+    console.log('✅ Auth confirmed, fetching project');
+    fetchProject();
+
+  }, [authLoading, isAuthenticated, isAdmin, id]); // Keep the same dependencies
+
+  // Updated handleSubmit function for EditProject.tsx
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    if (!authenticated || !user) {
+    // Double-check auth state at submission time
+    if (!isAuthenticated || !user) {
       showAlert(
         'Authentication Required',
         'You must be logged in to update a project. Please sign in first.',
@@ -202,8 +235,8 @@ export function EditProject() {
       const formData = new FormData(e.currentTarget);
       
       // Validate form fields
-      const projectName = formData.get('name') as string;
-      if (!projectName || projectName.trim().length < 3) {
+      const projectNameValue = formData.get('name') as string;
+      if (!projectNameValue || projectNameValue.trim().length < 3) {
         showAlert(
           'Validation Error', 
           'Project name must be at least 3 characters long', 
@@ -217,7 +250,7 @@ export function EditProject() {
       const now = new Date().toISOString();
       
       const projectData = {
-        name: projectName,
+        name: projectNameValue,
         description: formData.get('description') as string,
         usage: formData.get('usage') as string,
         tech_stack: techStack.length > 0 ? techStack : [{ name: 'Unspecified', icon: 'code' }],
@@ -225,16 +258,24 @@ export function EditProject() {
         github_url: formData.get('githubUrl') as string || null,
         readme_url: formData.get('readmeUrl') as string || null,
         screenshot_url: formData.get('screenshotUrl') as string || null,
+        image_path: imagePath, // Make sure this is included and current
         status: formData.get('status') as ProjectStatus || 'ongoing',
         project_lead: {
-          id: user.id, // Use Supabase User ID
+          id: user.uid,
           name: projectLeadName || null,
           position: projectLeadPosition || null
         },
         updated_at: now
       };
       
-      console.log('Updating project with data:', projectData);
+      // Debug log to see what we're updating
+      console.log('🔄 Updating project with data:', {
+        projectId: id,
+        ...projectData,
+        image_path: imagePath,
+        original_image_path: project?.image_path,
+        has_image: !!imagePath
+      });
       
       // Show processing alert
       showAlert(
@@ -261,14 +302,19 @@ export function EditProject() {
         throw error;
       }
       
-      console.log('Project updated successfully:', data);
+      console.log('✅ Project updated successfully:', data);
+      
+      // Verify the image was saved
+      if (data && data[0]) {
+        console.log('✅ Updated project image_path:', data[0].image_path);
+      }
       
       // Success alert
       showAlert(
         'Success!', 
         'Project updated successfully', 
         'success',
-        { autoClose: true, duration: 1500 } // Auto-close after 1.5 seconds
+        { autoClose: true, duration: 1500 }
       );
       
       // Redirect after a brief delay so user can see the success message
@@ -279,7 +325,6 @@ export function EditProject() {
     } catch (error: any) {
       console.error('Error updating project:', error);
       
-      // More detailed error message
       let errorMessage = 'Failed to update project. ';
       
       if (error.message) {
@@ -301,7 +346,6 @@ export function EditProject() {
       setTechStack([...techStack, { name: newTech.trim(), icon: 'code' }]);
       setNewTech('');
       
-      // Show a quick success alert
       showAlert(
         'Technology Added', 
         `Added ${newTech.trim()} to tech stack`, 
@@ -309,7 +353,6 @@ export function EditProject() {
         { duration: 2000 }
       );
     } else {
-      // Show warning if trying to add empty tech
       showAlert(
         'Warning', 
         'Please enter a technology name', 
@@ -323,7 +366,6 @@ export function EditProject() {
     const techToRemove = techStack[index].name;
     setTechStack(techStack.filter((_, i) => i !== index));
     
-    // Show removal notification
     showAlert(
       'Technology Removed', 
       `Removed ${techToRemove} from tech stack`, 
@@ -334,23 +376,24 @@ export function EditProject() {
 
   // Show loading state while checking authentication
   if (authLoading) {
+    console.log('🔄 Auth loading, showing spinner');
     return (
       <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-        <div className="animate-pulse">
-          <div className="h-12 w-12 rounded-full border-4 border-t-blue-500 border-r-transparent border-b-blue-500 border-l-transparent animate-spin"></div>
+        <div className="text-center">
+          <div className="h-12 w-12 rounded-full border-4 border-t-blue-500 border-r-transparent border-b-blue-500 border-l-transparent animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading authentication...</p>
         </div>
       </div>
     );
   }
 
-  // REMOVED: Manual auth checking - now handled by ProtectedRoute
-  
   // Show loading while fetching project
   if (isLoading) {
     return (
       <div className="fixed inset-0 z-[200] bg-gray-950/90 backdrop-blur-sm flex items-center justify-center">
-        <div className="animate-pulse">
+        <div className="text-center">
           <Loader />
+          <p className="text-gray-400 mt-4">Loading project data...</p>
         </div>
       </div>
     );
@@ -408,7 +451,7 @@ export function EditProject() {
         </div>
       </div>
 
-      {/* Rest of your form JSX stays exactly the same... */}
+      {/* Main Content Area with form */}
       <div className="max-w-screen-2xl mx-auto px-6 py-8">
         <form onSubmit={handleSubmit} className="bg-gray-900/50 backdrop-blur-xl rounded-xl border border-gray-800/50 shadow-2xl transition-all duration-500 hover:shadow-blue-900/20 animate-fadeIn">
           {/* Form Header */}
@@ -441,7 +484,8 @@ export function EditProject() {
                     type="text"
                     name="name"
                     required
-                    defaultValue={project.name}
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
                     className="mt-1 block w-full rounded-lg bg-gray-800/70 border border-gray-700/70 px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 hover:bg-gray-800/90"
                     placeholder="Enter project name"
                   />
@@ -472,6 +516,28 @@ export function EditProject() {
                 </label>
               </div>
 
+              {/* Project Image Section */}
+              <div className="space-y-5 transition-all duration-300 transform hover:translate-y-[-2px]">
+                <h3 className="text-xl font-semibold text-blue-400 border-b border-gray-800/50 pb-2 flex items-center gap-2">
+                  <span className="p-1 rounded-md bg-blue-900/30">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </span>
+                  Project Image
+                </h3>
+                
+                <ImageUpload
+                  onImageUpload={handleImageUpload}
+                  currentImagePath={imagePath}
+                  projectName={projectName || project.name}
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+
+            {/* Right Column */}
+            <div className="space-y-8">
               {/* Tech Stack Section */}
               <div className="space-y-5 transition-all duration-300 transform hover:translate-y-[-2px]">
                 <h3 className="text-xl font-semibold text-blue-400 border-b border-gray-800/50 pb-2 flex items-center gap-2">
@@ -548,10 +614,7 @@ export function EditProject() {
                   </select>
                 </label>
               </div>
-            </div>
 
-            {/* Right Column */}
-            <div className="space-y-8">
               {/* Team Information */}
               <div className="space-y-5 transition-all duration-300 transform hover:translate-y-[-2px]">
                 <h3 className="text-xl font-semibold text-blue-400 border-b border-gray-800/50 pb-2 flex items-center gap-2">

@@ -5,6 +5,7 @@ import { checkSupabaseConnection, supabase } from '../lib/supabase';
 import type { ProjectTechStack } from '../types/project';
 import { useAuth } from '../contexts/AuthContext';
 import { useAlert } from '../components/AlertContext';
+import { ImageUpload } from '../components/ImageUpload';
 
 // Import CSS for animations
 import '../alert-animations.css';
@@ -25,6 +26,7 @@ export interface Project {
   github_url?: string;
   readme_url?: string;
   screenshot_url?: string;
+  image_path?: string;
   usage?: string;
   updated_at?: string;
   // ... any other fields you have
@@ -37,16 +39,18 @@ export function NewProject() {
   const [newTech, setNewTech] = useState('');
   const [projectLeadName, setProjectLeadName] = useState('');
   const [projectLeadPosition, setProjectLeadPosition] = useState('');
+  const [imagePath, setImagePath] = useState<string | null>(null);
+  const [projectName, setProjectName] = useState('');
 
   // Use our auth context
-  const { user, isAdmin, isLoading } = useAuth();
+  const { user, isAdmin, loading } = useAuth();
   
   // Use our alert context
   const { showAlert, clearAlerts } = useAlert();
 
   // If not loading and either not authenticated or not admin, redirect back
   useEffect(() => {
-    if (!isLoading && (!user || !isAdmin)) {
+    if (!loading && (!user || !isAdmin)) {
       showAlert(
         'Access Restricted', 
         'You need admin privileges to access this page. Redirecting to dashboard...', 
@@ -58,20 +62,49 @@ export function NewProject() {
         navigate('/');
       }, 3000);
     }
-  }, [user, isAdmin, isLoading, navigate, showAlert]);
+  }, [user, isAdmin, loading, navigate, showAlert]);
 
-  // In handleSubmit function of NewProject.tsx
-  
+  // Handle image upload
+  const handleImageUpload = (uploadedImagePath: string | null) => {
+    console.log('🖼️ DEBUG - handleImageUpload called:', {
+      uploadedImagePath,
+      type: typeof uploadedImagePath,
+      length: uploadedImagePath?.length,
+      previous_imagePath: imagePath
+    });
+    
+    setImagePath(uploadedImagePath);
+    
+    // Verify state was updated
+    console.log('🖼️ DEBUG - State should be updated to:', uploadedImagePath);
+    
+    if (uploadedImagePath) {
+      showAlert(
+        'Image Uploaded',
+        'Project image uploaded successfully',
+        'success',
+        { duration: 2000 }
+      );
+      
+      // Additional verification after state update
+      setTimeout(() => {
+        console.log('🖼️ DEBUG - Verified state after update:', {
+          current_imagePath_state: imagePath,
+          matches_uploaded: imagePath === uploadedImagePath
+        });
+      }, 100);
+    } else {
+      console.log('🖼️ DEBUG - Image removed/cleared');
+    }
+  };
+
+
   // Updated handleSubmit function for NewProject.tsx
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     if (!user || !isAdmin) {
-      showAlert(
-        'Permission Denied', 
-        'You need admin privileges to create projects', 
-        'error'
-      );
+      showAlert('Permission Denied', 'You need admin privileges to create projects', 'error');
       return;
     }
     
@@ -81,22 +114,28 @@ export function NewProject() {
       const formData = new FormData(e.currentTarget);
       
       // Validate form fields
-      const projectName = formData.get('name') as string;
-      if (!projectName || projectName.trim().length < 3) {
-        showAlert(
-          'Validation Error', 
-          'Project name must be at least 3 characters long', 
-          'error'
-        );
+      const projectNameValue = formData.get('name') as string;
+      if (!projectNameValue || projectNameValue.trim().length < 3) {
+        showAlert('Validation Error', 'Project name must be at least 3 characters long', 'error');
         setIsSubmitting(false);
         return;
       }
       
-      // Current timestamp for created_at and updated_at
+      // *** DEBUG: Log the current imagePath state ***
+      console.log('🖼️ DEBUG - Form Submit Image Info:', {
+        imagePath_state: imagePath,
+        imagePath_type: typeof imagePath,
+        imagePath_length: imagePath?.length,
+        has_imagePath: !!imagePath,
+        user_id: user.uid,
+        projectName: projectNameValue
+      });
+      
+      // Current timestamp
       const now = new Date().toISOString();
       
       const projectData = {
-        name: projectName,
+        name: projectNameValue,
         description: formData.get('description') as string,
         usage: formData.get('usage') as string,
         tech_stack: techStack.length > 0 ? techStack : [{ name: 'Unspecified', icon: 'code' }],
@@ -104,123 +143,69 @@ export function NewProject() {
         github_url: formData.get('githubUrl') as string || null,
         readme_url: formData.get('readmeUrl') as string || null,
         screenshot_url: formData.get('screenshotUrl') as string || null,
+        image_path: imagePath, // *** This should contain the uploaded image path ***
         status: formData.get('status') as string || 'ongoing',
-        // Store Firebase UID as text to match your column type
-        firebase_user_id: user.id, 
+        firebase_user_id: user.uid, 
         project_lead: {
-          firebase_uid: user.id,
-          name: projectLeadName || user.display_name || 'Admin',
+          firebase_uid: user.uid,
+          name: projectLeadName || user.displayName || 'Admin',
           position: projectLeadPosition || 'Project Lead'
         },
         created_at: now,
         updated_at: now
       };
 
-      // Show processing alert
-      showAlert(
-        'Processing', 
-        'Creating your project...', 
-        'info', 
-        { autoClose: false }
-      );
+      // *** DEBUG: Log exactly what we're sending to database ***
+      console.log('🚀 DEBUG - Sending to Database:', {
+        projectData_keys: Object.keys(projectData),
+        image_path_value: projectData.image_path,
+        image_path_defined: projectData.image_path !== null && projectData.image_path !== undefined,
+        full_projectData: projectData
+      });
+
+      showAlert('Processing', 'Creating your project...', 'info', { autoClose: false });
       
-      // Check Supabase connection before attempting insert
-      try {
-        // First check if we have network connectivity at all
-        try {
-          await fetch('https://www.google.com', { mode: 'no-cors', cache: 'no-store' });
-        } catch (e) {
-          throw new Error('No internet connection detected. Please check your network connection and try again.');
-        }
-        
-        // Add a connection check (import this from supabase.ts)
-        const isConnected = await checkSupabaseConnection();
-        
-        if (!isConnected) {
-          throw new Error('Unable to connect to the database. Please check your configuration and try again.');
-        }
-        
-        console.log('Attempting to insert project data:', projectData);
-        
-        const { data, error } = await supabase
-          .from('projects')
-          .insert([projectData])
-          .select();
+      const { data, error } = await supabase
+        .from('projects')
+        .insert([projectData])
+        .select(); // *** Make sure we select all fields back ***
 
-        if (error) {
-          console.error('Database Error Details:', {
-            code: error.code,
-            message: error.message,
-            details: error.details,
-            hint: error.hint
+      if (error) {
+        console.error('❌ Database Error:', error);
+        showAlert('Database Error', `Failed to create project: ${error.message}`, 'error');
+        throw error;
+      }
+      
+      // *** DEBUG: Log what was actually saved ***
+      console.log('✅ DEBUG - Database Response:', {
+        saved_data: data,
+        saved_image_path: data?.[0]?.image_path,
+        saved_successfully: !!data?.[0]?.id
+      });
+      
+      if (data && data[0]) {
+        console.log('✅ Project created with ID:', data[0].id);
+        console.log('✅ Saved image_path:', data[0].image_path);
+        
+        // Additional verification
+        if (imagePath && !data[0].image_path) {
+          console.error('⚠️ WARNING: imagePath was provided but not saved!', {
+            provided_imagePath: imagePath,
+            saved_image_path: data[0].image_path
           });
-          
-          let errorMessage = error.message;
-          
-          // Provide more specific error messages based on error codes
-          if (error.code === '23505') {
-            errorMessage = 'A project with this name already exists.';
-          } else if (error.code === '23503') {
-            errorMessage = 'Invalid reference to another resource. Check project lead information.';
-          } else if (error.code === '42P01') {
-            errorMessage = 'The projects table does not exist. Database setup issue.';
-          } else if (error.code === 'PGRST301' || error.code === 'PGRST302') {
-            errorMessage = 'Authentication error. Please log out and log back in.';
-          } else if (error.message.includes('network')) {
-            errorMessage = 'Network error. Check your internet connection.';
-          }
-          
-          showAlert(
-            'Database Error', 
-            `Failed to create project: ${errorMessage}`, 
-            'error'
-          );
-          throw error;
-        }
-        
-        // Success alert
-        showAlert(
-          'Success!', 
-          'Project created successfully', 
-          'success',
-          { autoClose: true, duration: 1500 }
-        );
-
-        // Redirect after a brief delay
-        setTimeout(() => {
-          clearAlerts();
-          navigate('/dashboard');
-        }, 1500);
-      } catch (error: any) {
-        console.error('Detailed error:', error);
-        
-        // Check for specific network errors
-        if (error.message === 'Failed to fetch') {
-          showAlert(
-            'Connection Error', 
-            'Failed to connect to the database. Please check your network connection and try again.', 
-            'error'
-          );
-        } else {
-          showAlert(
-            'Error', 
-            `Failed to create project: ${error.message || 'Unknown error occurred'}`, 
-            'error'
-          );
         }
       }
+      
+      showAlert('Success!', 'Project created successfully', 'success', { autoClose: true, duration: 1500 });
+
+      setTimeout(() => {
+        clearAlerts();
+        navigate('/dashboard');
+      }, 1500);
+      
     } catch (error: any) {
-      console.error('Error creating project:', error);
-      
-      // More detailed error message
-      if (error.code) console.error('Error code:', error.code);
-      if (error.details) console.error('Error details:', error.details);
-      
-      showAlert(
-        'Error', 
-        `Failed to create project: ${error.message || 'Unknown error occurred'}`, 
-        'error'
-      );
+      console.error('❌ Complete error:', error);
+      showAlert('Error', `Failed to create project: ${error.message || 'Unknown error'}`, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -263,7 +248,7 @@ export function NewProject() {
   };
 
   // Show loading state while checking authentication
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
         <div className="animate-pulse">
@@ -352,6 +337,8 @@ export function NewProject() {
                     type="text"
                     name="name"
                     required
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
                     className="mt-1 block w-full rounded-lg bg-gray-800/70 border border-gray-700/70 px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 hover:bg-gray-800/90"
                     placeholder="Enter project name"
                   />
@@ -380,6 +367,42 @@ export function NewProject() {
                 </label>
               </div>
 
+              {/* Project Image Section */}
+              <div className="space-y-5 transition-all duration-300 transform hover:translate-y-[-2px]">
+                <h3 className="text-xl font-semibold text-blue-400 border-b border-gray-800/50 pb-2 flex items-center gap-2">
+                  <span className="p-1 rounded-md bg-blue-900/30">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </span>
+                  Project Image
+                </h3>
+                {process.env.NODE_ENV === 'development' && (
+                  <div className="mb-4 p-3 bg-blue-900/20 border border-blue-600/30 rounded">
+                    <div className="text-blue-400 font-semibold mb-2">🖼️ DEBUG - Current Image State:</div>
+                    <div className="text-sm space-y-1">
+                      <div>imagePath: <span className={imagePath ? 'text-green-400' : 'text-red-400'}>
+                        {imagePath || 'null/undefined'}
+                      </span></div>
+                      <div>projectName: <span className="text-gray-300">{projectName}</span></div>
+                      <div>State Type: <span className="text-gray-300">{typeof imagePath}</span></div>
+                      {imagePath && (
+                        <div>Length: <span className="text-gray-300">{imagePath.length}</span></div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <ImageUpload
+                  onImageUpload={handleImageUpload}
+                  currentImagePath={imagePath}
+                  projectName={projectName || 'project'}
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+
+            {/* Right Column */}
+            <div className="space-y-8">
               {/* Tech Stack Section */}
               <div className="space-y-5 transition-all duration-300 transform hover:translate-y-[-2px]">
                 <h3 className="text-xl font-semibold text-blue-400 border-b border-gray-800/50 pb-2 flex items-center gap-2">
@@ -455,10 +478,7 @@ export function NewProject() {
                   </select>
                 </label>
               </div>
-            </div>
 
-            {/* Right Column */}
-            <div className="space-y-8">
               {/* Team Information */}
               <div className="space-y-5 transition-all duration-300 transform hover:translate-y-[-2px]">
                 <h3 className="text-xl font-semibold text-blue-400 border-b border-gray-800/50 pb-2 flex items-center gap-2">
