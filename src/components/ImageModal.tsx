@@ -1,87 +1,52 @@
-// Project_Card/ProjectImage.tsx - Enhanced with Modal
-import React, { useState, useMemo, useEffect } from "react";
-import { Image, ImageOff, ZoomIn, ZoomOut, RotateCw, X } from "lucide-react";
-import { supabase } from "../../lib/supabase";
+import { useState, useEffect } from "react";
+import { X, ZoomIn, ZoomOut, RotateCw } from "lucide-react";
 
-interface ProjectImageProps {
-  // Support both image URL and storage path
-  imageUrl?: string | null;
-  imagePath?: string | null;
+interface ImageModalProps {
+  imageUrl?: string;
+  imagePath?: string;
   projectName: string;
   className?: string;
 }
 
-export const ProjectImage: React.FC<ProjectImageProps> = ({
+export const ImageModal: React.FC<ImageModalProps> = ({
   imageUrl,
   imagePath,
   projectName,
   className = "",
 }) => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-  
-  // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [modalImageError, setModalImageError] = useState(false);
-  const [modalImageLoading, setModalImageLoading] = useState(true);
 
-  // Generate the final image URL - prioritize Supabase Storage path, fallback to external URL
-  const finalImageUrl = useMemo(() => {
-    // Priority 1: Supabase Storage path
-    if (imagePath && imagePath.trim() !== '') {
-      try {
-        const { data } = supabase.storage
-          .from('project-images')
-          .getPublicUrl(imagePath);
-        
-        return data.publicUrl;
-      } catch (error) {
-        // Fall through to external URL if Supabase fails
-      }
-    }
-    
-    // Priority 2: External image URL
-    if (imageUrl && imageUrl.trim() !== '') {
-      return imageUrl;
-    }
-    
-    // No image available
+  // Get the image source URL
+  const getImageSrc = () => {
+    if (imageUrl) return imageUrl;
+    if (imagePath) return imagePath;
     return null;
-  }, [imagePath, imageUrl, projectName]);
+  };
 
-  // Reset loading state when URL changes
-  useEffect(() => {
-    if (finalImageUrl) {
-      setIsLoading(true);
-      setHasError(false);
-    } else {
-      setIsLoading(false);
-      setHasError(false);
-    }
-  }, [finalImageUrl]);
+  const imageSrc = getImageSrc();
 
-  // Modal functions
+  // Reset modal state when opening
   const openModal = () => {
-    if (!hasError && finalImageUrl) {
-      setIsModalOpen(true);
-      setZoom(1);
-      setRotation(0);
-      setPosition({ x: 0, y: 0 });
-      setModalImageError(false);
-      setModalImageLoading(true);
-    }
+    setIsModalOpen(true);
+    setZoom(1);
+    setRotation(0);
+    setPosition({ x: 0, y: 0 });
+    setImageError(false);
+    setImageLoading(true);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
   };
 
-  // Handle keyboard events and wheel events for modal
+  // Handle keyboard events and wheel events
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isModalOpen) return;
@@ -139,59 +104,21 @@ export const ProjectImage: React.FC<ProjectImageProps> = ({
     };
   }, [isModalOpen]);
 
-  // Handle mouse drag for panning with smooth movement
+  // Handle mouse drag for panning
   const handleMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
     setIsDragging(true);
     setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
-    // Disable text selection during drag
-    document.body.style.userSelect = 'none';
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging) return;
-    e.preventDefault();
-    
-    const newX = e.clientX - dragStart.x;
-    const newY = e.clientY - dragStart.y;
-    
-    // Apply smooth position update
     setPosition({
-      x: newX,
-      y: newY,
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y,
     });
   };
 
   const handleMouseUp = () => {
-    setIsDragging(false);
-    // Re-enable text selection
-    document.body.style.userSelect = '';
-  };
-
-  // Handle touch events for mobile smooth dragging
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 1) {
-      const touch = e.touches[0];
-      setIsDragging(true);
-      setDragStart({ x: touch.clientX - position.x, y: touch.clientY - position.y });
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging || e.touches.length !== 1) return;
-    e.preventDefault();
-    
-    const touch = e.touches[0];
-    const newX = touch.clientX - dragStart.x;
-    const newY = touch.clientY - dragStart.y;
-    
-    setPosition({
-      x: newX,
-      y: newY,
-    });
-  };
-
-  const handleTouchEnd = () => {
     setIsDragging(false);
   };
 
@@ -207,37 +134,21 @@ export const ProjectImage: React.FC<ProjectImageProps> = ({
 
   // Handle image load events
   const handleImageLoad = () => {
-    setIsLoading(false);
-    setHasError(false);
+    setImageLoading(false);
+    setImageError(false);
   };
 
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    setIsLoading(false);
-    setHasError(true);
+  const handleImageError = () => {
+    setImageLoading(false);
+    setImageError(true);
   };
 
-  // Modal image load events
-  const handleModalImageLoad = () => {
-    setModalImageLoading(false);
-    setModalImageError(false);
-  };
-
-  const handleModalImageError = () => {
-    setModalImageLoading(false);
-    setModalImageError(true);
-  };
-
-  // If no image is available, show placeholder
-  if (!finalImageUrl) {
+  if (!imageSrc) {
     return (
-      <div className={`w-20 h-16 bg-gray-800/40 border border-gray-700/40 rounded-lg flex items-center justify-center ${className}`}>
-        <ImageOff className="w-6 h-6 text-gray-500" />
-        {/* Debug indicator */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="absolute -top-2 -right-2 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-xs text-white">
-            !
-          </div>
-        )}
+      <div
+        className={`w-16 h-16 rounded-lg bg-gray-800 border border-gray-700 flex items-center justify-center ${className}`}
+      >
+        <span className="text-gray-400 text-xs text-center">No Image</span>
       </div>
     );
   }
@@ -245,55 +156,27 @@ export const ProjectImage: React.FC<ProjectImageProps> = ({
   return (
     <>
       {/* Thumbnail Image */}
-      <div 
-        className={`relative w-20 h-16 bg-gray-800/40 border border-gray-700/40 rounded-lg overflow-hidden group ${
-          !hasError ? 'cursor-pointer' : 'cursor-default'
-        } ${className}`}
-        onClick={openModal}
+      <div
+        className={`relative group ${!imageError ? 'cursor-pointer' : 'cursor-default'} ${className}`}
+        onClick={!imageError ? openModal : undefined}
       >
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-800/60 z-10">
-            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        )}
-        
-        {hasError ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-800/60">
-            <ImageOff className="w-6 h-6 text-gray-500" />
-            {/* Debug error indicator */}
-            {process.env.NODE_ENV === 'development' && (
-              <div className="absolute -top-2 -right-2 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-xs text-white">
-                X
-              </div>
-            )}
-          </div>
-        ) : (
-          <img
-            src={finalImageUrl}
-            alt={`${projectName} screenshot`}
-            onLoad={handleImageLoad}
-            onError={handleImageError}
-            className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-105 ${
-              isLoading ? "opacity-0" : "opacity-100"
-            }`}
-            crossOrigin="anonymous"
-          />
-        )}
-        
-        {/* Hover overlay with zoom icon */}
-        {!hasError && !isLoading && (
-          <div className="absolute inset-0 bg-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-            <ZoomIn className="w-4 h-4 text-white" />
-          </div>
-        )}
-        
-        {/* Debug indicator for successful images */}
-        {process.env.NODE_ENV === 'development' && finalImageUrl && !hasError && (
-          <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <div 
-              className={`w-2 h-2 rounded-full ${imagePath ? 'bg-green-500' : 'bg-blue-500'}`} 
-              title={imagePath ? `Storage: ${imagePath}` : `External: ${imageUrl}`} 
+        {!imageError ? (
+          <>
+            <img
+              src={imageSrc}
+              alt={projectName}
+              className="w-16 h-16 object-cover rounded-lg transition-all duration-300 group-hover:brightness-110"
+              onError={() => setImageError(true)}
             />
+            
+            {/* Hover overlay */}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 rounded-lg flex items-center justify-center">
+              <ZoomIn className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            </div>
+          </>
+        ) : (
+          <div className="w-16 h-16 bg-gray-800 border border-gray-700 rounded-lg flex items-center justify-center group-hover:bg-gray-700 transition-colors">
+            <span className="text-gray-400 text-xs text-center">No Image</span>
           </div>
         )}
       </div>
@@ -371,38 +254,34 @@ export const ProjectImage: React.FC<ProjectImageProps> = ({
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
             >
               <div className="absolute inset-0 flex items-center justify-center">
-                {modalImageLoading && !modalImageError && (
+                {imageLoading && !imageError && (
                   <div className="text-center text-gray-400">
                     <div className="w-8 h-8 border-2 border-gray-400 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
                     <p>Loading image...</p>
                   </div>
                 )}
                 
-                {!modalImageError && (
+                {!imageError && (
                   <img
-                    src={finalImageUrl}
+                    src={imageSrc}
                     alt={projectName}
-                    className={`max-w-none select-none transition-transform duration-100 ease-out ${
+                    className={`max-w-none transition-transform duration-200 ${
                       isDragging ? "cursor-grabbing" : "cursor-grab"
-                    } ${modalImageLoading ? "opacity-0" : "opacity-100"}`}
+                    } ${imageLoading ? "opacity-0" : "opacity-100"}`}
                     style={{
                       transform: `scale(${zoom}) rotate(${rotation}deg) translate(${position.x}px, ${position.y}px)`,
-                      willChange: 'transform',
-                      transformOrigin: 'center center',
+                      userSelect: "none",
                     }}
                     draggable={false}
-                    onLoad={handleModalImageLoad}
-                    onError={handleModalImageError}
+                    onLoad={handleImageLoad}
+                    onError={handleImageError}
                   />
                 )}
               </div>
 
-              {modalImageError && (
+              {imageError && (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center text-gray-400 max-w-md p-6">
                     <div className="w-16 h-16 bg-gray-700 rounded-lg flex items-center justify-center mx-auto mb-4">
@@ -412,15 +291,13 @@ export const ProjectImage: React.FC<ProjectImageProps> = ({
                     <p className="text-sm mb-4">The image could not be displayed</p>
                     <div className="text-xs text-gray-500 bg-gray-800/50 rounded p-3 text-left">
                       <p><strong>Debug info:</strong></p>
-                      <p>URL: {finalImageUrl}</p>
+                      <p>URL: {imageSrc}</p>
                       <p>Project: {projectName}</p>
-                      <p>Path: {imagePath || 'None'}</p>
-                      <p>External URL: {imageUrl || 'None'}</p>
                     </div>
                     <button
                       onClick={() => {
-                        setModalImageError(false);
-                        setModalImageLoading(true);
+                        setImageError(false);
+                        setImageLoading(true);
                       }}
                       className="mt-4 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors"
                     >
@@ -429,6 +306,17 @@ export const ProjectImage: React.FC<ProjectImageProps> = ({
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Instructions */}
+            <div className="absolute bottom-4 left-4 bg-black/70 backdrop-blur-sm rounded-lg p-3 text-xs text-gray-300">
+              <p><strong>Controls:</strong></p>
+              <p>• Mouse wheel: Zoom in/out</p>
+              <p>• Drag: Pan image</p>
+              <p>• +/- keys: Zoom</p>
+              <p>• R key: Rotate</p>
+              <p>• 0 key: Reset view</p>
+              <p>• Esc: Close</p>
             </div>
           </div>
         </div>

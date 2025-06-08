@@ -377,21 +377,7 @@ export function NewProject() {
                   </span>
                   Project Image
                 </h3>
-                {process.env.NODE_ENV === 'development' && (
-                  <div className="mb-4 p-3 bg-blue-900/20 border border-blue-600/30 rounded">
-                    <div className="text-blue-400 font-semibold mb-2">🖼️ DEBUG - Current Image State:</div>
-                    <div className="text-sm space-y-1">
-                      <div>imagePath: <span className={imagePath ? 'text-green-400' : 'text-red-400'}>
-                        {imagePath || 'null/undefined'}
-                      </span></div>
-                      <div>projectName: <span className="text-gray-300">{projectName}</span></div>
-                      <div>State Type: <span className="text-gray-300">{typeof imagePath}</span></div>
-                      {imagePath && (
-                        <div>Length: <span className="text-gray-300">{imagePath.length}</span></div>
-                      )}
-                    </div>
-                  </div>
-                )}
+                
                 <ImageUpload
                   onImageUpload={handleImageUpload}
                   currentImagePath={imagePath}

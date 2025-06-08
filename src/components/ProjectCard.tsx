@@ -173,7 +173,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
             
             <ProjectImage
               imageUrl={project.image_url}
-              imagePath={project.image_path}
+              imagePath={project.image_path}  
               projectName={project.name}
               className="ring-1 ring-gray-600/40 hover:ring-gray-500/60 transition-all duration-300"
             />

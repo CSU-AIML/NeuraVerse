@@ -16,7 +16,6 @@ import { AlertProvider } from './components/AlertContext';
 import ApiReference from './components/ApiReference';
 import Templates from './components/Templates';
 import Tutorials from './components/Tutorials';
-import DatabaseConnectionTest from './components/DatabaseConnectionTest';
 import { AdminSetup } from './components/AdminSetup';
 
 // Loading Component
@@ -88,23 +87,6 @@ class AppErrorBoundary extends React.Component<
   }
 }
 
-// Auth Debug Component (Development only)
-const AuthDebugger: React.FC = () => {
-  if (process.env.NODE_ENV !== 'development') return null;
-
-  return (
-    <Suspense fallback={null}>
-      <div className="fixed bottom-4 right-4 bg-slate-800/90 backdrop-blur-sm border border-slate-700 rounded-lg p-3 text-white text-xs max-w-xs z-50">
-        <div className="space-y-1">
-          <div className="font-semibold text-indigo-400 mb-1">🔧 Dev Mode</div>
-          <div>Environment: {process.env.NODE_ENV}</div>
-          <div>Firebase: {import.meta.env.VITE_FIREBASE_PROJECT_ID ? '✅' : '❌'}</div>
-          <div>Supabase: {import.meta.env.VITE_SUPABASE_URL ? '✅' : '❌'}</div>
-        </div>
-      </div>
-    </Suspense>
-  );
-};
 
 // Network Status Component
 const NetworkStatus: React.FC = () => {
@@ -222,41 +204,7 @@ function App() {
                       </ProtectedRoute>
                     } />
                     
-                    {/* Development/Testing Routes - Remove in production */}
-                    {process.env.NODE_ENV === 'development' && (
-                      <>
-                        <Route path="/db-test" element={
-                          <ProtectedRoute adminOnly={true}>
-                            <DatabaseConnectionTest />
-                          </ProtectedRoute>
-                        } />
-                        <Route path="/debug" element={
-                          <ProtectedRoute adminOnly={true}>
-                            <div className="min-h-screen bg-slate-900 p-8">
-                              <h1 className="text-2xl font-bold text-white mb-4">Debug Information</h1>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="bg-slate-800 rounded-lg p-4">
-                                  <h2 className="text-lg font-semibold text-white mb-2">Environment Variables</h2>
-                                  <div className="text-sm text-slate-300 space-y-1">
-                                    <div>Firebase Project: {import.meta.env.VITE_FIREBASE_PROJECT_ID || 'Not set'}</div>
-                                    <div>Supabase URL: {import.meta.env.VITE_SUPABASE_URL ? 'Set' : 'Not set'}</div>
-                                    <div>Environment: {process.env.NODE_ENV}</div>
-                                  </div>
-                                </div>
-                                <div className="bg-slate-800 rounded-lg p-4">
-                                  <h2 className="text-lg font-semibold text-white mb-2">System Info</h2>
-                                  <div className="text-sm text-slate-300 space-y-1">
-                                    <div>User Agent: {navigator.userAgent.slice(0, 50)}...</div>
-                                    <div>Online: {navigator.onLine ? 'Yes' : 'No'}</div>
-                                    <div>Language: {navigator.language}</div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </ProtectedRoute>
-                        } />
-                      </>
-                    )}
+                    
                     
                     {/* Catch-all route - redirect to dashboard */}
                     <Route path="*" element={

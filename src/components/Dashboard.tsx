@@ -17,7 +17,6 @@ import DashboardHeader from './Dashboard/DashboardHeader';
 import DashboardBackground from './Dashboard/DashboardBackground';
 import EmptyState from './Dashboard/EmptyState';
 import LoadingOverlay from './Dashboard/LoadingOverlay';
-import FloatingActionButton from './Dashboard/FloatingActionButton';
 import DashboardLoader from './Dashboard/DashboardLoader';
 import HomePage from './Dashboard/HomePage';
 import TextPressurePage from './Dashboard/TextPressurePage';
@@ -56,20 +55,7 @@ function Dashboard() {
   // Use the alert context
   const { showAlert, clearAlerts } = useAlert();
 
-  // DEBUG CODE - Add this temporarily to see auth state
-  useEffect(() => {
-    if (user) {
-      console.log('=== AUTH DEBUG ===');
-      console.log('Firebase UID:', user.uid);
-      console.log('Email:', user.email);
-      console.log('Profile:', profile);
-      console.log('Is Admin:', isAdmin);
-      console.log('Profile Role:', profile?.role);
-      console.log('Profile Account Status:', profile?.account_status);
-      console.log('Auth Loading:', authLoading);
-      console.log('==================');
-    }
-  }, [user, profile, isAdmin, authLoading]);
+  
 
   useEffect(() => {
     fetchProjects();
@@ -126,21 +112,7 @@ function Dashboard() {
       
       console.log('Raw project data:', data);
       
-      // *** DEBUG: Check image data in raw response ***
-      if (data && data.length > 0) {
-        const projectsWithImages = data.filter(p => p.image_path || p.image_url);
-        console.log('🖼️ DEBUG - Projects with images found:', {
-          total_projects: data.length,
-          projects_with_image_path: data.filter(p => p.image_path).length,
-          projects_with_image_url: data.filter(p => p.image_url).length,
-          sample_image_data: data.slice(0, 3).map(p => ({
-            id: p.id,
-            name: p.name,
-            image_path: p.image_path,
-            image_url: p.image_url
-          }))
-        });
-      }
+      
       
       // Handle case where data might be null or undefined
       if (!data) {
@@ -580,9 +552,6 @@ function Dashboard() {
       <div className="mt-auto">
         <Footer />
       </div>
-      
-      {/* Floating action button for mobile/tablet */}
-      
       
       {/* Loading overlay */}
       <LoadingOverlay 
