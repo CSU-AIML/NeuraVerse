@@ -265,7 +265,7 @@ export const useScrollAnimation = (
 
 // Hook for page transitions
 export const usePageTransition = () => {
-  const pageRef = useRef<HTMLElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const element = pageRef.current;
