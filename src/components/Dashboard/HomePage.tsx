@@ -2,6 +2,7 @@ import { motion } from 'motion/react';
 import { ArrowRight, Sparkles, Brain, Code, Users, Zap, Globe, Database } from 'lucide-react';
 import { Button } from '../ui/button';
 import SplitText from '../ui/SplitText';
+import ScrollVelocity from '../ui/ScrollVelocity';
 
 interface HomePageProps {
   isAdmin: boolean;
@@ -13,6 +14,7 @@ const HomePage = ({ isAdmin, onCreateProject, onExploreProjects }: HomePageProps
   const handleAnimationComplete = () => {
     console.log('Title animation completed!');
   };
+
   const features = [
     {
       icon: Brain,
@@ -42,6 +44,8 @@ const HomePage = ({ isAdmin, onCreateProject, onExploreProjects }: HomePageProps
     { number: "25+", label: "Technologies" },
     { number: "24/7", label: "Available" }
   ];
+
+
 
   return (
     <div className="relative overflow-hidden rounded-3xl bg-slate-900/40 backdrop-blur-xl border border-white/10 shadow-2xl m-4">
@@ -75,7 +79,7 @@ const HomePage = ({ isAdmin, onCreateProject, onExploreProjects }: HomePageProps
 
             <div className="text-4xl sm:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
               <SplitText
-                text="Explore the"
+                text="Explore the "
                 className="text-white block"
                 delay={50}
                 duration={0.4}
@@ -85,8 +89,9 @@ const HomePage = ({ isAdmin, onCreateProject, onExploreProjects }: HomePageProps
                 to={{ opacity: 1, y: 0 }}
                 textAlign="center"
               />
+              
               <SplitText
-                text="NeuraVerse"
+                text=" NeuraVerse"
                 className="text-blue-400 block font-bold"
                 delay={100}
                 duration={0.4}
@@ -188,36 +193,77 @@ const HomePage = ({ isAdmin, onCreateProject, onExploreProjects }: HomePageProps
             ))}
           </motion.div>
 
-          {/* Technology Stack */}
+          {/* Technology Stack with ScrollVelocity */}
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.6, duration: 0.8 }}
-            className="text-center p-10 rounded-3xl bg-slate-900/60 backdrop-blur-2xl border border-white/20 shadow-2xl"
+            className="text-center p-10 rounded-3xl bg-slate-900/60 backdrop-blur-2xl border border-white/20 shadow-2xl overflow-hidden"
           >
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-8">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-12">
               Powered by Cutting-Edge Technologies
             </h2>
-            <div className="flex flex-wrap justify-center items-center gap-6">
-              {[
-                { icon: Brain, label: "TensorFlow" },
-                { icon: Code, label: "PyTorch" },
-                { icon: Database, label: "Supabase" },
-                { icon: Globe, label: "React" },
-                { icon: Zap, label: "FastAPI" },
-              ].map((tech, index) => (
-                <motion.div
-                  key={tech.label}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 1.8 + index * 0.1, duration: 0.6 }}
-                  whileHover={{ opacity: 1, scale: 1.1 }}
-                  className="flex items-center space-x-3 px-6 py-3 bg-gradient-to-r from-slate-800/80 to-slate-700/80 backdrop-blur-sm rounded-xl border border-slate-600/50 hover:border-blue-400/50 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/20 text-white"
-                >
-                  <tech.icon className="w-5 h-5 text-blue-400" />
-                  <span className="text-base font-semibold">{tech.label}</span>
-                </motion.div>
-              ))}
+            
+            <div className="space-y-8">
+              <div className="relative">
+                <ScrollVelocity
+                  texts={['TensorFlow • PyTorch • Scikit-learn • Keras • XGBoost • OpenCV • CUDA • Hugging Face • NumPy • Pandas']}
+                  velocity={50}
+                  className="text-4xl sm:text-5xl font-black text-white"
+                  parallaxClassName="w-full overflow-hidden py-6"
+                  scrollerClassName="flex whitespace-nowrap"
+                  damping={50}
+                  stiffness={400}
+                  numCopies={3}
+                />
+                <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-slate-900 to-transparent pointer-events-none z-10"></div>
+                <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-slate-900 to-transparent pointer-events-none z-10"></div>
+              </div>
+              
+              <div className="relative">
+                <ScrollVelocity
+                  texts={['React • Next.js • TypeScript • FastAPI • Node.js • PostgreSQL • MongoDB • Supabase • Docker • Kubernetes']}
+                  velocity={-75}
+                  className="text-4xl sm:text-5xl font-black text-white"
+                  parallaxClassName="w-full overflow-hidden py-6"
+                  scrollerClassName="flex whitespace-nowrap"
+                  damping={50}
+                  stiffness={400}
+                  numCopies={3}
+                />
+                <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-slate-900 to-transparent pointer-events-none z-10"></div>
+                <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-slate-900 to-transparent pointer-events-none z-10"></div>
+              </div>
+              
+              <div className="relative">
+                <ScrollVelocity
+                  texts={['AWS SageMaker • Google Cloud AI • Azure ML • Matplotlib • Jupyter • Apache Spark • Plotly • Seaborn']}
+                  velocity={60}
+                  className="text-4xl sm:text-5xl font-black text-white"
+                  parallaxClassName="w-full overflow-hidden py-6"
+                  scrollerClassName="flex whitespace-nowrap"
+                  damping={50}
+                  stiffness={400}
+                  numCopies={3}
+                />
+                <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-slate-900 to-transparent pointer-events-none z-10"></div>
+                <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-slate-900 to-transparent pointer-events-none z-10"></div>
+              </div>
+              
+              <div className="relative">
+                <ScrollVelocity
+                  texts={['OpenAI GPT • Anthropic Claude • LangChain • Pinecone • Chroma • FAISS • MLflow • Weights & Biases']}
+                  velocity={-85}
+                  className="text-4xl sm:text-5xl font-black text-white"
+                  parallaxClassName="w-full overflow-hidden py-6"
+                  scrollerClassName="flex whitespace-nowrap"
+                  damping={50}
+                  stiffness={400}
+                  numCopies={3}
+                />
+                <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-slate-900 to-transparent pointer-events-none z-10"></div>
+                <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-slate-900 to-transparent pointer-events-none z-10"></div>
+              </div>
             </div>
           </motion.div>
 
