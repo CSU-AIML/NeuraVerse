@@ -39,10 +39,10 @@ const HomePage = ({ isAdmin, onCreateProject, onExploreProjects }: HomePageProps
   ];
 
   const stats = [
-    { number: "50+", label: "AI Projects" },
-    { number: "100+", label: "Researchers" },
+    { number: "10+", label: "AI Projects" },
+    { number: "16+", label: "Researchers" },
     { number: "25+", label: "Technologies" },
-    { number: "24/7", label: "Available" }
+    { number: "8/7", label: "Available" }
   ];
 
 
@@ -79,7 +79,7 @@ const HomePage = ({ isAdmin, onCreateProject, onExploreProjects }: HomePageProps
 
             <div className="text-4xl sm:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
               <SplitText
-                text="Explore the "
+                text="Explore the"
                 className="text-white block"
                 delay={50}
                 duration={0.4}
@@ -89,9 +89,8 @@ const HomePage = ({ isAdmin, onCreateProject, onExploreProjects }: HomePageProps
                 to={{ opacity: 1, y: 0 }}
                 textAlign="center"
               />
-              
               <SplitText
-                text=" NeuraVerse"
+                text="NeuraVerse"
                 className="text-blue-400 block font-bold"
                 delay={100}
                 duration={0.4}
@@ -204,66 +203,54 @@ const HomePage = ({ isAdmin, onCreateProject, onExploreProjects }: HomePageProps
               Powered by Cutting-Edge Technologies
             </h2>
             
-            <div className="space-y-8">
-              <div className="relative">
-                <ScrollVelocity
-                  texts={['TensorFlow • PyTorch • Scikit-learn • Keras • XGBoost • OpenCV • CUDA • Hugging Face • NumPy • Pandas']}
-                  velocity={50}
-                  className="text-4xl sm:text-5xl font-black text-white"
-                  parallaxClassName="w-full overflow-hidden py-6"
-                  scrollerClassName="flex whitespace-nowrap"
-                  damping={50}
-                  stiffness={400}
-                  numCopies={3}
-                />
-                <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-slate-900 to-transparent pointer-events-none z-10"></div>
-                <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-slate-900 to-transparent pointer-events-none z-10"></div>
-              </div>
+            <div className="relative space-y-8">
+              <ScrollVelocity
+                texts={['TensorFlow ▸ PyTorch ▸ Scikit-learn ▸ Keras ▸ XGBoost ▸ OpenCV ▸ CUDA ▸ Hugging Face ▸ NumPy ▸ Pandas']}
+                velocity={50}
+                className="text-4xl sm:text-5xl font-black text-white"
+                parallaxClassName="w-full overflow-hidden py-6"
+                scrollerClassName="flex whitespace-nowrap"
+                damping={50}
+                stiffness={400}
+                numCopies={3}
+              />
               
-              <div className="relative">
-                <ScrollVelocity
-                  texts={['React • Next.js • TypeScript • FastAPI • Node.js • PostgreSQL • MongoDB • Supabase • Docker • Kubernetes']}
-                  velocity={-75}
-                  className="text-4xl sm:text-5xl font-black text-white"
-                  parallaxClassName="w-full overflow-hidden py-6"
-                  scrollerClassName="flex whitespace-nowrap"
-                  damping={50}
-                  stiffness={400}
-                  numCopies={3}
-                />
-                <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-slate-900 to-transparent pointer-events-none z-10"></div>
-                <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-slate-900 to-transparent pointer-events-none z-10"></div>
-              </div>
+              <ScrollVelocity
+                texts={['React ▸ Next.js ▸ TypeScript ▸ FastAPI ▸ Node.js ▸ PostgreSQL ▸ MongoDB ▸ Supabase ▸ Docker ▸ Kubernetes']}
+                velocity={-75}
+                className="text-4xl sm:text-5xl font-black text-white"
+                parallaxClassName="w-full overflow-hidden py-6"
+                scrollerClassName="flex whitespace-nowrap"
+                damping={50}
+                stiffness={400}
+                numCopies={3}
+              />
               
-              <div className="relative">
-                <ScrollVelocity
-                  texts={['AWS SageMaker • Google Cloud AI • Azure ML • Matplotlib • Jupyter • Apache Spark • Plotly • Seaborn']}
-                  velocity={60}
-                  className="text-4xl sm:text-5xl font-black text-white"
-                  parallaxClassName="w-full overflow-hidden py-6"
-                  scrollerClassName="flex whitespace-nowrap"
-                  damping={50}
-                  stiffness={400}
-                  numCopies={3}
-                />
-                <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-slate-900 to-transparent pointer-events-none z-10"></div>
-                <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-slate-900 to-transparent pointer-events-none z-10"></div>
-              </div>
+              <ScrollVelocity
+                texts={['AWS SageMaker ▸ Google Cloud AI ▸ Azure ML ▸ Matplotlib ▸ Jupyter ▸ Apache Spark ▸ Plotly ▸ Seaborn']}
+                velocity={60}
+                className="text-4xl sm:text-5xl font-black text-white"
+                parallaxClassName="w-full overflow-hidden py-6"
+                scrollerClassName="flex whitespace-nowrap"
+                damping={50}
+                stiffness={400}
+                numCopies={3}
+              />
               
-              <div className="relative">
-                <ScrollVelocity
-                  texts={['OpenAI GPT • Anthropic Claude • LangChain • Pinecone • Chroma • FAISS • MLflow • Weights & Biases']}
-                  velocity={-85}
-                  className="text-4xl sm:text-5xl font-black text-white"
-                  parallaxClassName="w-full overflow-hidden py-6"
-                  scrollerClassName="flex whitespace-nowrap"
-                  damping={50}
-                  stiffness={400}
-                  numCopies={3}
-                />
-                <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-slate-900 to-transparent pointer-events-none z-10"></div>
-                <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-slate-900 to-transparent pointer-events-none z-10"></div>
-              </div>
+              <ScrollVelocity
+                texts={['OpenAI GPT ▸ Anthropic Claude ▸ LangChain ▸ Pinecone ▸ Chroma ▸ FAISS ▸ MLflow ▸ Weights & Biases']}
+                velocity={-85}
+                className="text-4xl sm:text-5xl font-black text-white"
+                parallaxClassName="w-full overflow-hidden py-6"
+                scrollerClassName="flex whitespace-nowrap"
+                damping={50}
+                stiffness={400}
+                numCopies={3}
+              />
+              
+              {/* Container-level gradients */}
+              <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-slate-900/60 to-transparent pointer-events-none z-10"></div>
+              <div className="absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-slate-900/60 to-transparent pointer-events-none z-10"></div>
             </div>
           </motion.div>
 
