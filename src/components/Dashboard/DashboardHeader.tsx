@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import UserRoleIndicator from '../UserRoleIndicator';
-import logo from "../../components/assets/white_logo.png";
+import logo from "../../public/192x192.png";
 import { NavigateFunction } from 'react-router-dom';
 
 interface DashboardHeaderProps {

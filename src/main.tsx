@@ -4,6 +4,7 @@ import App from './App.tsx';
 import './index.css';
 import { AlertProvider } from './components/AlertContext';
 
+
 // Import the CSS for animations
 import '../src/alert-animations.css';
 

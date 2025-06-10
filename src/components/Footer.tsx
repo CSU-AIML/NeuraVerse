@@ -1,7 +1,7 @@
 import type { FC } from 'react';
 import { Github, Twitter, Linkedin, Mail, ExternalLink, ChevronUp, Heart } from 'lucide-react';
 import { AnimatedTooltip } from "../components/ui/animated-tooltip";
-import logo from "../components/assets/white_logo.png";
+import logo from "../public/192x192.png";
 
 const Footer: FC = () => {
   const scrollToTop = () => {
