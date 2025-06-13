@@ -6,6 +6,8 @@ import ScrollVelocity from '../ui/ScrollVelocity';
 import { BackgroundBeams } from '../ui/background-beams';
 import { BentoGrid, BentoGridItem } from '../ui/bento-grid';
 import { cn } from '@/lib/utils';
+import { ColourfulText } from "../ui/colourful-text";
+
 
 interface HomePageProps {
   isAdmin: boolean;
@@ -291,29 +293,26 @@ const HomePage = ({ isAdmin, onCreateProject, onExploreProjects }: HomePageProps
               </motion.div>
 
               <div className="text-4xl sm:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
-                <SplitText
-                  text="Explore the"
-                  className="text-white block"
-                  delay={50}
-                  duration={0.4}
-                  ease="power2.out"
-                  splitType="chars"
-                  from={{ opacity: 0, y: 20 }}
-                  to={{ opacity: 1, y: 0 }}
-                  textAlign="center"
-                />
-                <SplitText
-                  text="NeuraVerse"
-                  className="text-blue-400 block font-bold"
-                  delay={100}
-                  duration={0.4}
-                  ease="power2.out"
-                  splitType="chars"
-                  from={{ opacity: 0, y: 20 }}
-                  to={{ opacity: 1, y: 0 }}
-                  textAlign="center"
-                />
-              </div>
+  <SplitText
+    text="Explore the "
+    className="text-white inline-block align-top mr-4"
+    delay={50}
+    duration={0.4}
+    ease="power2.out"
+    splitType="chars"
+    from={{ opacity: 0, y: 20 }}
+    to={{ opacity: 1, y: 0 }}
+    textAlign="center"
+  />
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay: 0.1, duration: 0.4 }}
+    className="inline-block font-bold align-top"
+  >
+    <ColourfulText text="NeuraVerse" />
+  </motion.div>
+</div>
 
               <motion.p
                 initial={{ opacity: 0, y: 20 }}
