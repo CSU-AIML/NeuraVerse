@@ -19,6 +19,7 @@ import Tutorials from './components/Tutorials';
 import { AdminSetup } from './components/AdminSetup';
 import { useSmoothScroll, usePageTransition } from './hooks/useGSAP';
 import { gsap } from 'gsap';
+import NotFoundPage from './pages/NotFoundPage';
 
 // Enhanced Loading Component with GSAP animations
 const LoadingScreen: React.FC<{ onComplete?: () => void }> = ({ onComplete }) => {
@@ -345,7 +346,7 @@ const RoutesWrapper: React.FC = () => {
         <Route path="*" element={
           <ProtectedRoute allowGuest={true}>
             <PageWrapper>
-              <Dashboard />
+              <NotFoundPage />
             </PageWrapper>
           </ProtectedRoute>
         } />
