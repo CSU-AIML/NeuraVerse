@@ -457,7 +457,7 @@ function Dashboard() {
       <DashboardBackground />
       
       {/* Main content with responsive container */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10 relative z-10">
+      <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10 relative z-10">
         {/* Enhanced Header */}
         <DashboardHeader 
           navigate={navigate}

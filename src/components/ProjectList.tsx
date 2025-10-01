@@ -35,7 +35,7 @@ const ProjectsList: React.FC<ProjectsListProps> = ({
 }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(12);
+  const [itemsPerPage] = useState(5);
 
   // Pagination logic
   const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
@@ -177,7 +177,7 @@ const ProjectsList: React.FC<ProjectsListProps> = ({
       )}
 
       {/* Projects Container */}
-      <div className={getGridClass()}>
+      <div className={`${getGridClass()} relative`}>
         {currentProjects.map((project, index) => {
           // Ensure project_lead.name is always defined for type compatibility
           const safeProject = {
@@ -291,6 +291,16 @@ const ProjectsList: React.FC<ProjectsListProps> = ({
         .animate-fadeIn {
           animation: fadeIn 0.6s ease-out;
         }
+        @keyframes slideIn {
+          from { transform: translateX(30px); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+          from { transform: translateX(0); opacity: 1; }
+          to { transform: translateX(-30px); opacity: 0; }
+        }
+        .page-enter { animation: slideIn 0.4s ease-out; }
+        .page-exit { animation: slideOut 0.4s ease-in; }
       `}</style>
     </div>
   );

@@ -368,7 +368,8 @@ class UserManagementService {
         throw new Error('Admin access required');
       }
 
-      const { data: profile, error } = await supabase
+      // First attempt: treat userId as firebase_uid
+      let { data: profile, error } = await supabase
         .from('user_profiles')
         .update({
           ...updates,
@@ -377,10 +378,31 @@ class UserManagementService {
         })
         .eq('firebase_uid', userId)
         .select()
-        .single();
+        .maybeSingle();
+
+      // If no row matched firebase_uid, retry by primary id
+      if (!profile) {
+        const retry = await supabase
+          .from('user_profiles')
+          .update({
+            ...updates,
+            updated_at: new Date().toISOString(),
+            updated_by: currentUserProfile.firebase_uid,
+          })
+          .eq('id', userId)
+          .select()
+          .maybeSingle();
+
+        profile = retry.data as any;
+        error = retry.error as any;
+      }
 
       if (error) {
         throw new Error(`Failed to update user: ${error.message}`);
+      }
+
+      if (!profile) {
+        throw new Error('Failed to update user: user not found');
       }
 
       // Log the action
@@ -433,6 +455,29 @@ class UserManagementService {
     } catch (error) {
       console.error('Error demoting user:', error);
       return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Reactivate a suspended/deleted user (set status to active)
+   */
+  async reactivateUser(userId: string, reason?: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const profile = await this.updateUser(userId, {
+        account_status: 'active',
+        suspension_reason: undefined,
+        suspension_end_date: undefined,
+      });
+
+      await this.logUserAction('user_reactivated', userId, {
+        reactivated_by: getCurrentUser()?.uid,
+        reason: reason || 'Reactivated by admin',
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error reactivating user:', error);
+      return { success: false, error: (error as any).message };
     }
   }
 

@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import userManagementService, { UserProfile } from '../services/userManagementService';
+import FloatingModal from '../components/FloatingModal';
+import { exportUserDataToPdf } from '../utils/pdfExport';
 
 // Enhanced interfaces
 interface SecurityAlert {
@@ -184,14 +186,12 @@ export function UserManagement() {
     
     setSecurityAlerts(prev => [alert, ...prev]);
     
-    // Auto-dismiss info alerts after 5 seconds
-    if (type === 'info') {
-      setTimeout(() => {
-        setSecurityAlerts(prev => 
-          prev.map(a => a.id === alert.id ? { ...a, dismissed: true } : a)
-        );
-      }, 5000);
-    }
+    // Auto-dismiss all alerts after 5 seconds
+    setTimeout(() => {
+      setSecurityAlerts(prev => 
+        prev.map(a => a.id === alert.id ? { ...a, dismissed: true } : a)
+      );
+    }, 5000);
   }, []);
 
   // Handle user promotion with reason
@@ -260,6 +260,26 @@ export function UserManagement() {
     }
   }, []);
 
+  // Handle user reactivation
+  const handleReactivateUser = useCallback(async (userId: string, reason?: string) => {
+    setOperationStates(prev => ({ ...prev, [`reactivate-${userId}`]: true }));
+    try {
+      const result = await userManagementService.reactivateUser(userId, reason);
+      if (result.success) {
+        setUsers(prev => prev.map(u => 
+          u.firebase_uid === userId ? { ...u, account_status: 'active' } : u
+        ));
+        addSecurityAlert('info', `User reactivated successfully`);
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error: any) {
+      addSecurityAlert('error', `Failed to reactivate user: ${error.message}`);
+    } finally {
+      setOperationStates(prev => ({ ...prev, [`reactivate-${userId}`]: false }));
+    }
+  }, []);
+
   // Handle user deletion with GDPR compliance
   const handleDeleteUser = useCallback(async (userId: string, reason: string, gdprRequest = false) => {
     setOperationStates(prev => ({ ...prev, [`delete-${userId}`]: true }));
@@ -293,18 +313,8 @@ export function UserManagement() {
       const result = await userManagementService.exportUserData(userId);
       
       if (result.success) {
-        // Create and download the data export
-        const dataStr = JSON.stringify(result.data, null, 2);
-        const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(dataBlob);
-        
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `user-data-export-${userId}-${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        const filename = `user-data-export-${userId}-${new Date().toISOString().split('T')[0]}.pdf`;
+        exportUserDataToPdf(filename, result.data as any);
         
         addSecurityAlert('info', `User data exported successfully`);
       } else {
@@ -370,6 +380,12 @@ export function UserManagement() {
     return matchesSearch && matchesRole && matchesStatus;
   });
 
+  // Pagination (10 per page)
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const usersPerPage = 10;
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / usersPerPage));
+  const pagedUsers = filteredUsers.slice((currentPage - 1) * usersPerPage, currentPage * usersPerPage);
+
   // User selection handlers - Use firebase_uid instead of id
   const toggleUserSelection = useCallback((userId: string) => {
     setSelectedUsers(prev => {
@@ -384,8 +400,8 @@ export function UserManagement() {
   }, []);
 
   const selectAllUsers = useCallback(() => {
-    setSelectedUsers(new Set(filteredUsers.map(u => u.firebase_uid)));
-  }, [filteredUsers]);
+    setSelectedUsers(new Set(pagedUsers.map(u => u.firebase_uid)));
+  }, [pagedUsers]);
 
   const clearSelection = useCallback(() => {
     setSelectedUsers(new Set());
@@ -406,7 +422,7 @@ export function UserManagement() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white">
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         
         {/* Header Section */}
         <div className="mb-8">
@@ -421,6 +437,13 @@ export function UserManagement() {
             </div>
             
             <div className="flex items-center gap-4">
+              <button
+                onClick={() => navigate('/')}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-700/40 hover:bg-slate-700/60 border border-slate-600/40 rounded-xl text-slate-200 transition-all duration-200"
+              >
+                <Settings className="w-4 h-4 hidden" />
+                Home
+              </button>
               <button
                 onClick={() => loadUsers(true)}
                 disabled={loading || refreshing}
@@ -602,14 +625,14 @@ export function UserManagement() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="min-w-full table-auto">
                 <thead className="bg-slate-700/30">
                   <tr>
                     <th className="text-left p-4">
                       <input
                         type="checkbox"
-                        checked={selectedUsers.size === filteredUsers.length && filteredUsers.length > 0}
-                        onChange={selectedUsers.size === filteredUsers.length ? clearSelection : selectAllUsers}
+                        checked={selectedUsers.size === pagedUsers.length && pagedUsers.length > 0}
+                        onChange={selectedUsers.size === pagedUsers.length ? clearSelection : selectAllUsers}
                         className="w-4 h-4 text-indigo-600 border-slate-500 rounded focus:ring-indigo-500"
                       />
                     </th>
@@ -621,7 +644,7 @@ export function UserManagement() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700/30">
-                  {filteredUsers.map(userData => (
+                  {pagedUsers.map(userData => (
                     <tr 
                       key={userData.firebase_uid} 
                       className={`hover:bg-slate-700/20 transition-colors ${
@@ -715,7 +738,7 @@ export function UserManagement() {
                       
                       <td className="p-4">
                         <div className="flex items-center gap-2">
-                          {userData.account_status === 'active' && (
+                          {(userData.account_status === 'active' || userData.account_status === 'suspended') && (
                             <>
                               {userData.role === 'user' ? (
                                 <button
@@ -751,21 +774,36 @@ export function UserManagement() {
                                 </button>
                               )}
                               
-                              <button
-                                onClick={() => {
-                                  setCurrentUser(userData);
-                                  setActiveModal('suspend');
-                                }}
-                                disabled={operationStates[`suspend-${userData.firebase_uid}`]}
-                                className="p-2 text-orange-400 hover:text-orange-300 hover:bg-orange-900/20 rounded-lg transition-colors"
-                                title="Suspend User"
-                              >
-                                {operationStates[`suspend-${userData.firebase_uid}`] ? (
-                                  <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
-                                ) : (
-                                  <Pause className="w-4 h-4" />
-                                )}
-                              </button>
+                              {userData.account_status === 'active' ? (
+                                <button
+                                  onClick={() => {
+                                    setCurrentUser(userData);
+                                    setActiveModal('suspend');
+                                  }}
+                                  disabled={operationStates[`suspend-${userData.firebase_uid}`]}
+                                  className="p-2 text-orange-400 hover:text-orange-300 hover:bg-orange-900/20 rounded-lg transition-colors"
+                                  title="Suspend User"
+                                >
+                                  {operationStates[`suspend-${userData.firebase_uid}`] ? (
+                                    <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
+                                  ) : (
+                                    <Pause className="w-4 h-4" />
+                                  )}
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleReactivateUser(userData.firebase_uid)}
+                                  disabled={operationStates[`reactivate-${userData.firebase_uid}`]}
+                                  className="p-2 text-green-400 hover:text-green-300 hover:bg-green-900/20 rounded-lg transition-colors"
+                                  title="Reactivate User"
+                                >
+                                  {operationStates[`reactivate-${userData.firebase_uid}`] ? (
+                                    <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
+                                  ) : (
+                                    <Play className="w-4 h-4" />
+                                  )}
+                                </button>
+                              )}
                             </>
                           )}
                           
@@ -809,6 +847,28 @@ export function UserManagement() {
                   ))}
                 </tbody>
               </table>
+              {/* Pagination controls */}
+              <div className="flex items-center justify-between p-4 border-t border-slate-700/50">
+                <div className="text-sm text-slate-400">
+                  Page {currentPage} of {totalPages}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className={`px-3 py-1.5 rounded-lg text-sm ${currentPage === 1 ? 'text-slate-500 cursor-not-allowed' : 'text-slate-200 hover:bg-slate-700/50 border border-slate-600/30'}`}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className={`px-3 py-1.5 rounded-lg text-sm ${currentPage === totalPages ? 'text-slate-500 cursor-not-allowed' : 'text-slate-200 hover:bg-slate-700/50 border border-slate-600/30'}`}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -863,11 +923,10 @@ export function UserManagement() {
         </div>
       </div>
       
-      {/* Simple Modal for Actions */}
-      {activeModal && currentUser && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-md w-full">
-            <div className="text-center">
+      {/* Floating Modal for Actions */}
+      <FloatingModal isOpen={!!activeModal && !!currentUser} onClose={() => { setActiveModal(null); setOperationReason(''); }}>
+        <div className="p-6">
+          <div className="text-center">
               <h3 className="text-lg font-semibold text-white mb-4">
                 {activeModal === 'delete' ? 'Delete User' :
                  activeModal === 'suspend' ? 'Suspend User' :
@@ -877,14 +936,14 @@ export function UserManagement() {
               </h3>
               
               {/* Modal content based on type */}
-              {activeModal === 'delete' && (
+              {activeModal === 'delete' && currentUser && (
                 <div>
                   <p className="text-slate-300 mb-4">
                     Are you sure you want to delete {currentUser.display_name || currentUser.email}?
                   </p>
                   <div className="mb-4">
                     <textarea
-                      placeholder="Reason for deletion (required)"
+                      placeholder="Reason for deletion (optional)"
                       value={operationReason}
                       onChange={(e) => setOperationReason(e.target.value)}
                       className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400"
@@ -907,8 +966,7 @@ export function UserManagement() {
                         setActiveModal(null);
                         setOperationReason('');
                       }}
-                      disabled={!operationReason.trim()}
-                      className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 disabled:bg-red-800 rounded-lg text-white transition-colors"
+                      className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-white transition-colors"
                     >
                       Delete
                     </button>
@@ -916,7 +974,7 @@ export function UserManagement() {
                 </div>
               )}
 
-              {activeModal === 'suspend' && (
+              {activeModal === 'suspend' && currentUser && (
                 <div>
                   <p className="text-slate-300 mb-4">
                     Suspend {currentUser.display_name || currentUser.email}?
@@ -968,7 +1026,7 @@ export function UserManagement() {
                 </div>
               )}
 
-              {(activeModal === 'promote' || activeModal === 'demote') && (
+              {(activeModal === 'promote' || activeModal === 'demote') && currentUser && (
                 <div>
                   <p className="text-slate-300 mb-4">
                     {activeModal === 'promote' 
@@ -1018,7 +1076,7 @@ export function UserManagement() {
               )}
 
               {/* User details modal */}
-              {activeModal === 'user-details' && (
+              {activeModal === 'user-details' && currentUser && (
                 <div className="text-left">
                   <div className="space-y-3">
                     <div className="flex justify-between">
@@ -1071,10 +1129,9 @@ export function UserManagement() {
                   </button>
                 </div>
               )}
-            </div>
           </div>
         </div>
-      )}
+      </FloatingModal>
     </div>
   );
 }

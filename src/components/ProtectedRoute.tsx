@@ -258,16 +258,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       {/* Session warning overlay */}
       <SessionWarning {...sessionWarningData} />
       
-      {/* Optional: Session info indicator (for development) */}
-      {process.env.NODE_ENV === 'development' && sessionInfo && (
-        <div className="fixed bottom-4 right-4 bg-gray-800 text-white p-2 rounded text-xs border border-gray-600">
-          <div>Session: {isPersistent ? 'Persistent' : 'Temporary'}</div>
-          {sessionInfo.expiresAt && (
-            <div>Expires: {sessionInfo.expiresAt.toLocaleTimeString()}</div>
-          )}
-          <div>Last Activity: {sessionInfo.lastActivity.toLocaleTimeString()}</div>
-        </div>
-      )}
+      {/* Session info indicator removed for cleaner UI */}
     </>
   );
 };
