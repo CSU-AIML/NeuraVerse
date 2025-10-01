@@ -285,10 +285,12 @@ const Logo: React.FC<{ theme: 'dark' | 'light' }> = ({ theme }) => (
     whileHover={{ scale: 1.02 }}
     whileTap={{ scale: 0.98 }}
   >
-    <div className="relative h-10 w-10 overflow-hidden rounded-xl bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-600 p-1 shadow-lg shadow-blue-500/25">
-      <div className="h-full w-full bg-white rounded-lg flex items-center justify-center">
-        <Sparkles className="h-6 w-6 text-blue-600" />
-      </div>
+    <div className="relative h-10 w-10 overflow-hidden rounded-xl shadow-lg">
+      <img 
+        src="/CSUstar.png" 
+        alt="NeuraVerse Logo" 
+        className="h-full w-full object-contain"
+      />
     </div>
     <h1 className={`text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r 
       ${theme === 'dark' 

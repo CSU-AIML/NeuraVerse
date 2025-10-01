@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import UserRoleIndicator from '../UserRoleIndicator';
-import logo from "../../public/192x192.png";
+// Logo will be referenced directly from public folder
 import { NavigateFunction } from 'react-router-dom';
 
 interface DashboardHeaderProps {
@@ -264,7 +264,7 @@ const DashboardHeader = ({ navigate, isAdmin, user, signOut }: DashboardHeaderPr
             className="flex-shrink-0"
           >
             <img 
-              src={logo} 
+              src="/CSUstar.png" 
               alt="AI/ML Projects Dashboard" 
               className="h-8 w-auto"
             />

@@ -1,24 +1,24 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    
+
     <!-- Favicon - Multiple formats for better browser support -->
-    <link rel="icon" type="image/x-icon" href="./src/public/favicon.ico">
-    
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+
     <!-- Apple Touch Icons -->
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    
+
     <!-- Android Chrome Icons -->
-    <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png" />
-    <link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png" />
-    
-    <!-- Fallback for your current logo -->
-    <link rel="icon" type="image/png" href="/white_logo.png" />
-    
+    <link rel="icon" type="image/png" sizes="192x192" href="/192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/512x512.png" />
+
+    <!-- Main logo -->
+    <link rel="icon" type="image/png" href="/CSUstar.png" />
+
     <!-- Web App Manifest -->
     <link rel="manifest" href="/site.webmanifest" />
-    
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NeuraVerse</title>
   </head>
@@ -27,20 +27,20 @@
     <script type="module" src="/src/main.tsx"></script>
 
     <script>
-      (function() {
-          const savedTheme = localStorage.getItem('theme');
-          
-          if (savedTheme === 'dark') {
-            document.documentElement.classList.add('dark');
-          } else if (savedTheme === 'light') {
-            document.documentElement.classList.remove('dark');
-          } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            document.documentElement.classList.add('dark');
-            localStorage.setItem('theme', 'dark');
-          } else {
-            localStorage.setItem('theme', 'light');
-          }
-        })();
+      (function () {
+        const savedTheme = localStorage.getItem("theme");
+
+        if (savedTheme === "dark") {
+          document.documentElement.classList.add("dark");
+        } else if (savedTheme === "light") {
+          document.documentElement.classList.remove("dark");
+        } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+          document.documentElement.classList.add("dark");
+          localStorage.setItem("theme", "dark");
+        } else {
+          localStorage.setItem("theme", "light");
+        }
+      })();
     </script>
   </body>
 </html>
