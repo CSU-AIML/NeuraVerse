@@ -201,6 +201,7 @@ const ProjectsList: React.FC<ProjectsListProps> = ({
             >
               <ProjectCard
                 project={safeProject}
+                variant={viewMode}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 onArchive={handleArchive}

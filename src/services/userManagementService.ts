@@ -522,24 +522,17 @@ class UserManagementService {
         throw new Error('Admin access required');
       }
 
-      // Soft delete the profile
+      // Hard delete the profile so it doesn't reappear after refresh
       const { error: profileError } = await supabase
         .from('user_profiles')
-        .update({
-          account_status: 'deleted',
-          deleted_at: new Date().toISOString(),
-          deleted_by: currentUserProfile.firebase_uid,
-          deletion_reason: reason || 'Deleted by admin',
-          updated_at: new Date().toISOString(),
-        })
+        .delete()
         .eq('firebase_uid', userId);
 
       if (profileError) {
         throw new Error(`Failed to delete user profile: ${profileError.message}`);
       }
 
-      // Note: We keep the Firebase user for audit purposes
-      // In a real production system, you might want to disable the Firebase user instead
+      // Note: Firebase auth user is not removed here. Consider disabling the Auth user separately if required.
 
       // Log the action
       await this.logUserAction('user_deleted', userId, {

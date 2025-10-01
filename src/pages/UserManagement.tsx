@@ -647,7 +647,7 @@ export function UserManagement() {
                   {pagedUsers.map(userData => (
                     <tr 
                       key={userData.firebase_uid} 
-                      className={`hover:bg-slate-700/20 transition-colors ${
+                      className={`hover:bg-slate-700/20 transition-all duration-300 ${
                         selectedUsers.has(userData.firebase_uid) ? 'bg-indigo-900/20' : ''
                       }`}
                     >
@@ -962,6 +962,8 @@ export function UserManagement() {
                     </button>
                     <button
                       onClick={() => {
+                        // Optimistic UI removal with smooth fade
+                        setUsers(prev => prev.filter(u => u.firebase_uid !== currentUser.firebase_uid));
                         handleDeleteUser(currentUser.firebase_uid, operationReason);
                         setActiveModal(null);
                         setOperationReason('');

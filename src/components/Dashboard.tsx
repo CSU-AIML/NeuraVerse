@@ -452,7 +452,7 @@ function Dashboard() {
   }
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-slate-900 to-gray-900 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-slate-900 to-gray-900 relative">
       {/* Animated Background */}
       <DashboardBackground />
       
@@ -549,7 +549,7 @@ function Dashboard() {
       </div>
       
       {/* Enhanced footer */}
-      <div className="mt-auto">
+      <div className="mt-auto relative z-10">
         <Footer />
       </div>
       

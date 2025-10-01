@@ -2,7 +2,7 @@ import Waves from '../ui/Waves';
 
 const DashboardBackground = () => {
   return (
-    <div className="fixed inset-0 z-0">
+    <div className="fixed inset-0 z-0 pointer-events-none">
       {/* Fixed waves background */}
       <div className="absolute inset-0">
         <Waves

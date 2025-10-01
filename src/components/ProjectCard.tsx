@@ -23,6 +23,7 @@ import {
 
 interface ProjectCardProps {
   project: ExtendedProject;
+  variant?: 'list' | 'grid' | 'compact';
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onArchive: (id: string) => void;
@@ -32,6 +33,7 @@ interface ProjectCardProps {
 
 export const ProjectCard: React.FC<ProjectCardProps> = ({
   project,
+  variant = 'list',
   onEdit,
   onDelete,
   onArchive,
@@ -132,18 +134,23 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
     setIsExpanded(!isExpanded);
   };
 
+  // Clamp helpers for grid/compact views
+  const isDense = variant !== 'list';
+  const titleClamp = isDense ? 'line-clamp-1' : 'line-clamp-2';
+  const descClamp = variant === 'compact' ? 'line-clamp-2' : isDense ? 'line-clamp-3' : 'line-clamp-5';
+
   return (
     <div
       ref={cardRef}
       className={`group relative rounded-2xl overflow-hidden transition-all duration-300 ${
         isArchived
-          ? "border border-gray-700/40 bg-gray-900/30"
-          : "border border-gray-700/50 bg-gray-900/40 hover:bg-gray-900/60 hover:border-gray-600/60"
-      } backdrop-blur-xl shadow-lg hover:shadow-xl`}
+          ? "border border-slate-700/40 bg-slate-900/40"
+          : "border border-slate-700/60 bg-slate-900/50 hover:bg-slate-900/70 hover:border-slate-500/60"
+      } backdrop-blur-xl shadow-lg hover:shadow-2xl ring-1 ring-white/5`}
       onClick={() => isMobile && !isExpanded && setIsExpanded(true)}
     >
       {/* Background Pattern */}
-      <div className="absolute inset-0 bg-gradient-to-br from-gray-900/80 via-gray-800/60 to-gray-900/80 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-900/80 via-slate-800/60 to-slate-900/80 pointer-events-none" />
 
       {/* Subtle grid pattern */}
       <div
@@ -165,114 +172,166 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
       )}
 
       {/* Main content */}
-      <div className={`relative z-10 p-6 ${isArchived ? "opacity-60" : ""}`}>
-        {/* Header Section with Image */}
-        <div className="flex items-start gap-4 mb-6">
-          {/* Project Image Container */}
-          <div className="flex-shrink-0">
-            
-            <ProjectImage
-              imageUrl={project.image_url}
-              imagePath={project.image_path}  
-              projectName={project.name}
-              className="ring-1 ring-gray-600/40 hover:ring-gray-500/60 transition-all duration-300"
-            />
-          </div>
-
-          {/* Header Content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between">
-              <ProjectHeader
-                project={project}
-                techStackLength={techStack.length}
-              />
-
-              {/* Action Buttons & Priority */}
-              <div className="flex items-center gap-2 ml-4 flex-shrink-0">
-                {/* Priority Badge */}
-                <PriorityBadge priority={priority} />
-
-                <ActionButtons
-                  isAdmin={isAdmin}
-                  isArchived={isArchived}
-                  isMobile={isMobile}
-                  isExpanded={isExpanded}
-                  onEdit={handleEdit}
-                  onArchiveToggle={handleArchiveToggle}
-                  onDelete={handleDeleteClick}
-                  onToggleExpand={toggleExpand}
+      <div className={`relative z-10 ${isDense ? 'p-4' : 'p-6'} ${isArchived ? "opacity-60" : ""}`}>
+        {isDense ? (
+          // Minimal grid/compact card layout
+          <div className="space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <ProjectImage
+                  imageUrl={project.image_url}
+                  imagePath={project.image_path}
+                  projectName={project.name}
+                  className="ring-1 ring-slate-600/40 rounded-lg overflow-hidden w-[80px] h-[60px] object-cover"
                 />
               </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className={`text-white font-semibold truncate ${titleClamp}`}>{project.name}</h3>
+                  <PriorityBadge priority={priority} />
+                </div>
+                <div className="mt-1 text-xs text-slate-400 flex items-center gap-3">
+                  {project.project_lead?.name && <span className="truncate">{project.project_lead.name}</span>}
+                  {project.updated_at && <span className="truncate">{new Date(project.updated_at).toLocaleDateString()}</span>}
+                  {techStack.length > 0 && <span>{techStack.length} tech</span>}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        {/* Description */}
-        <ProjectDescription description={project.description} />
+            <p className={`text-slate-300 text-sm ${descClamp}`}>{project.description}</p>
 
-        {/* Content Areas - Desktop always shows, Mobile shows when expanded */}
-        {(!isMobile || isExpanded) && (
-          <div className="space-y-6">
-            {/* Mobile Tabs */}
-            {isMobile && (
-              <MobileTabs activeTab={activeTab} onTabChange={setActiveTab} />
-            )}
-
-            {/* Mobile Tab Content */}
-            {isMobile ? (
-              <div className="space-y-4">
-                {activeTab === "overview" && (
-                  <div className="space-y-4">
-                    <ProjectDetails project={project} variant="mobile" />
-                    <UsageInstructions usage={project.usage} variant="mobile" />
-                  </div>
-                )}
-
-                {activeTab === "tech" && (
-                  <TechStack techStack={techStack} variant="mobile" />
-                )}
-
-                {activeTab === "links" && (
-                  <LinkButtons
-                    project={project}
-                    isAdmin={isAdmin}
-                    variant="mobile"
-                    onUseProject={handleUseProject}
-                  />
-                )}
-              </div>
-            ) : (
-              /* Desktop Layout */
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Column - Project Info */}
-                <div className="lg:col-span-1 space-y-4">
-                  <ProjectDetails project={project} variant="desktop" />
-                  <TechStack techStack={techStack} variant="desktop" />
-                </div>
-
-                {/* Right Column - Usage & Links */}
-                <div className="lg:col-span-2 space-y-4">
-                  <UsageInstructions usage={project.usage} variant="desktop" />
-                  <LinkButtons
-                    project={project}
-                    isAdmin={isAdmin}
-                    variant="desktop"
-                    onUseProject={handleUseProject}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Mobile Admin Actions */}
-            {isAdmin && isMobile && (
-              <MobileAdminActions
+            <div className="flex items-center justify-between">
+              <button
+                onClick={handleUseProject}
+                className="px-3 py-1.5 text-sm bg-blue-600/80 hover:bg-blue-600 rounded-lg text-white transition-colors"
+              >
+                Open
+              </button>
+              <ActionButtons
+                isAdmin={isAdmin}
                 isArchived={isArchived}
+                isMobile={true}
+                isExpanded={false}
                 onEdit={handleEdit}
                 onArchiveToggle={handleArchiveToggle}
                 onDelete={handleDeleteClick}
+                onToggleExpand={toggleExpand}
               />
-            )}
+            </div>
           </div>
+        ) : (
+          <>
+            {/* Header Section with Image */}
+            <div className={`flex items-start gap-4 ${isDense ? 'mb-4' : 'mb-6'}`}>
+              {/* Project Image Container */}
+              <div className="flex-shrink-0">
+                <ProjectImage
+                  imageUrl={project.image_url}
+                  imagePath={project.image_path}  
+                  projectName={project.name}
+                  className="ring-1 ring-slate-600/40 hover:ring-slate-400/60 transition-all duration-300 rounded-xl overflow-hidden"
+                />
+              </div>
+
+              {/* Header Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between">
+                  <ProjectHeader
+                    project={project}
+                    techStackLength={techStack.length}
+                  />
+
+                  {/* Action Buttons & Priority */}
+                  <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                    {/* Priority Badge */}
+                    <PriorityBadge priority={priority} />
+
+                    <ActionButtons
+                      isAdmin={isAdmin}
+                      isArchived={isArchived}
+                      isMobile={isMobile}
+                      isExpanded={isExpanded}
+                      onEdit={handleEdit}
+                      onArchiveToggle={handleArchiveToggle}
+                      onDelete={handleDeleteClick}
+                      onToggleExpand={toggleExpand}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Description */}
+            <div className={`relative ${descClamp}`}>
+              <div className="absolute inset-0 rounded-xl bg-white/2" />
+              <ProjectDescription description={project.description} />
+            </div>
+
+            {/* Content Areas - Desktop always shows, Mobile shows when expanded */}
+            {(!isMobile || isExpanded) && (
+              <div className="space-y-6">
+                {/* Mobile Tabs */}
+                {isMobile && (
+                  <MobileTabs activeTab={activeTab} onTabChange={setActiveTab} />
+                )}
+
+                {/* Mobile Tab Content */}
+                {isMobile ? (
+                  <div className="space-y-4">
+                    {activeTab === "overview" && (
+                      <div className="space-y-4">
+                        <ProjectDetails project={project} variant="mobile" />
+                        <UsageInstructions usage={project.usage} variant="mobile" />
+                      </div>
+                    )}
+
+                    {activeTab === "tech" && (
+                      <TechStack techStack={techStack} variant="mobile" />
+                    )}
+
+                    {activeTab === "links" && (
+                      <LinkButtons
+                        project={project}
+                        isAdmin={isAdmin}
+                        variant="mobile"
+                        onUseProject={handleUseProject}
+                      />
+                    )}
+                  </div>
+                ) : (
+                  /* Desktop Layout */
+                  <div className={`grid grid-cols-1 lg:grid-cols-3 ${isDense ? 'gap-4' : 'gap-6'}`}>
+                    {/* Left Column - Project Info */}
+                    <div className={`lg:col-span-1 ${isDense ? 'space-y-3' : 'space-y-4'}`}>
+                      <ProjectDetails project={project} variant={isDense ? 'mobile' : 'desktop'} />
+                      <TechStack techStack={techStack.slice(0, isDense ? 6 : 12)} variant={isDense ? 'mobile' : 'desktop'} />
+                    </div>
+
+                    {/* Right Column - Usage & Links */}
+                    <div className={`lg:col-span-2 ${isDense ? 'space-y-3' : 'space-y-4'}`}>
+                      <UsageInstructions usage={project.usage} variant={isDense ? 'mobile' : 'desktop'} />
+                      <LinkButtons
+                        project={project}
+                        isAdmin={isAdmin}
+                        variant={isDense ? 'mobile' : 'desktop'}
+                        onUseProject={handleUseProject}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Mobile Admin Actions */}
+                {isAdmin && isMobile && (
+                  <MobileAdminActions
+                    isArchived={isArchived}
+                    onEdit={handleEdit}
+                    onArchiveToggle={handleArchiveToggle}
+                    onDelete={handleDeleteClick}
+                  />
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
 
