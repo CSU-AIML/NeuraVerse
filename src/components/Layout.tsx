@@ -287,7 +287,7 @@ const Logo: React.FC<{ theme: 'dark' | 'light' }> = ({ theme }) => (
   >
     <div className="relative h-10 w-10 overflow-hidden rounded-xl shadow-lg">
       <img 
-        src="/CSUstar.png" 
+        src="/CSU_Star-removebg-preview.png" 
         alt="NeuraVerse Logo" 
         className="h-full w-full object-contain"
       />

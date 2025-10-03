@@ -264,7 +264,7 @@ const DashboardHeader = ({ navigate, isAdmin, user, signOut }: DashboardHeaderPr
             className="flex-shrink-0"
           >
             <img 
-              src="/CSUstar.png" 
+              src="/CSU_Star-removebg-preview.png" 
               alt="AI/ML Projects Dashboard" 
               className="h-8 w-auto"
             />
